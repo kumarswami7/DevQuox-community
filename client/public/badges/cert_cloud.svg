@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <linearGradient id="certBg2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#182230"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>
+  <!-- Dark navy circle with vibrant cyan/purple ring -->
+  <circle cx="60" cy="60" r="50" fill="url(#certBg2)" stroke="#818cf8" stroke-width="4"/>
+  <!-- Server Database Layers with Cloud Checkmark -->
+  <!-- Top Stack Layer -->
+  <ellipse cx="60" cy="45" rx="26" ry="9" fill="none" stroke="#818cf8" stroke-width="3.5"/>
+  <!-- Middle Layer -->
+  <path d="M 34,45 L 34,60 C 34,66 46,70 60,70 C 74,70 86,66 86,60 L 86,45" fill="none" stroke="#818cf8" stroke-width="3.5"/>
+  <!-- Bottom Layer -->
+  <path d="M 34,60 L 34,75 C 34,81 46,85 60,85 C 74,85 86,81 86,75 L 86,60" fill="none" stroke="#818cf8" stroke-width="3.5"/>
+  <!-- Database Activity Status Indicator in white/sky blue -->
+  <circle cx="43" cy="53" r="2.5" fill="#f8fafc"/>
+  <circle cx="43" cy="68" r="2.5" fill="#38bdf8"/>
+  <circle cx="60" cy="30" r="3" fill="#818cf8"/>
+</svg>

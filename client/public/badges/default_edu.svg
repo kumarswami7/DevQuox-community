@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <linearGradient id="eduBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#182230"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>
+  <!-- Deep dark navy circle with vibrant electric blue ring -->
+  <circle cx="60" cy="60" r="50" fill="url(#eduBg)" stroke="#0091ff" stroke-width="4"/>
+  <!-- Mortarboard Diamond Top in vibrant electric blue -->
+  <polygon points="60,33 95,49 60,65 25,49" fill="#0091ff"/>
+  <!-- Headband / Shield Outline in matching electric blue -->
+  <path d="M 39,56 L 39,72 C 39,83 60,91 60,91 C 60,91 81,83 81,72 L 81,56" fill="none" stroke="#0091ff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Tassel Cord & Dot in clean white -->
+  <line x1="93" y1="49" x2="93" y2="72" stroke="#e2e8f0" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="93" cy="74" r="3.5" fill="#f8fafc"/>
+</svg>

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <linearGradient id="eduBg3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#182230"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>
+  <!-- Dark navy circle with vibrant indigo/electric ring -->
+  <circle cx="60" cy="60" r="50" fill="url(#eduBg3)" stroke="#6366f1" stroke-width="4"/>
+  <!-- Master's Diploma Scroll & Seal -->
+  <!-- Rolled Scroll Rectangle -->
+  <rect x="36" y="52" width="48" height="16" rx="4" transform="rotate(-22 60 60)" fill="none" stroke="#6366f1" stroke-width="3.5"/>
+  <!-- Scroll Ends -->
+  <ellipse cx="38" cy="70" rx="3.5" ry="7" transform="rotate(-22 38 70)" fill="#6366f1"/>
+  <ellipse cx="82" cy="50" rx="3.5" ry="7" transform="rotate(-22 82 50)" fill="#6366f1"/>
+  <!-- Ribbon Ribbon Tie in center -->
+  <rect x="56" y="52" width="8" height="16" rx="2" transform="rotate(-22 60 60)" fill="#f8fafc"/>
+  <path d="M 58,68 L 54,82 L 60,78 L 65,83 L 62,69" fill="#f8fafc"/>
+  <!-- Honors Star on top right -->
+  <polygon points="82,32 84,38 90,38 85,42 87,48 82,44 77,48 79,42 74,38 80,38" fill="#6366f1"/>
+</svg>
