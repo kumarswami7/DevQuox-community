@@ -58,7 +58,10 @@ const resolveMediaUrl = (url) => {
   ) {
     return url;
   }
-  const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5000";
+  const isProdHost = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+  const apiBase = (import.meta.env.VITE_API_URL && !import.meta.env.VITE_API_URL.includes('localhost'))
+    ? import.meta.env.VITE_API_URL
+    : (isProdHost ? 'https://dev-quox-community-bb6g.vercel.app/api/v1' : 'http://localhost:5000');
   const cleanBase = apiBase.replace(/\/api\/v1\/?$/, "").replace(/\/api\/?$/, "");
   return `${cleanBase}${url.startsWith("/") ? "" : "/"}${url}`;
 };

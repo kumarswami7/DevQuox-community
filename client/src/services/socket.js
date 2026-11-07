@@ -29,10 +29,12 @@ export const getSocket = () => {
     return socket;
   }
 
+  const isProd = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
   let socketUrl =
     import.meta.env.VITE_SOCKET_URL ||
-    import.meta.env.VITE_API_URL ||
-    window.location.origin;
+    (isProd
+      ? 'https://dev-quox-community-bb6g.vercel.app'
+      : (import.meta.env.VITE_API_URL || window.location.origin));
 
   try {
     const parsed = new URL(socketUrl, window.location.origin);
