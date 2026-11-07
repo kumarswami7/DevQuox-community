@@ -30,11 +30,18 @@ export const getSocket = () => {
   }
 
   const isProd = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+
+  // Vercel serverless functions do not support continuous WebSocket / Socket.IO connections.
+  // Unless an explicit dedicated WebSocket server (VITE_SOCKET_URL) is configured,
+  // skip socket connection in production to avoid console spam and failed handshakes.
+  if (isProd && !import.meta.env.VITE_SOCKET_URL) {
+    return null;
+  }
+
   let socketUrl =
     import.meta.env.VITE_SOCKET_URL ||
-    (isProd
-      ? 'https://dev-quox-community-bb6g.vercel.app'
-      : (import.meta.env.VITE_API_URL || window.location.origin));
+    import.meta.env.VITE_API_URL ||
+    window.location.origin;
 
   try {
     const parsed = new URL(socketUrl, window.location.origin);
