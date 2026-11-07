@@ -3,6 +3,8 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import path from 'path';
 
+import fs from 'fs';
+
 import { env } from './config/env.js';
 import { getDatabaseStatus } from './config/db.js';
 
@@ -93,7 +95,11 @@ export const createApp = () => {
     })
   );
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+  // Only serve static uploads when the directory exists (Vercel's /var/task is read-only)
+  const uploadsDir = path.join(process.cwd(), 'uploads');
+  if (fs.existsSync(uploadsDir)) {
+    app.use('/uploads', express.static(uploadsDir));
+  }
 
   // 5. Health Check Endpoints (/api/health and /api/v1/health)
   const healthHandler = (req, res) => {
