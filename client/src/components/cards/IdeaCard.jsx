@@ -523,7 +523,7 @@ export const IdeaCard = ({ idea, onIdeaUpdated, onIdeaDeleted }) => {
     <>
       <Card
         onClick={handleOpenDetails}
-        className="glass-card p-3.5 sm:p-5 border-slate-200/90 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col group shadow-xs hover:shadow-md relative cursor-pointer rounded-2xl"
+        className="glass-card p-3.5 sm:p-5 border-slate-200/90 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col group shadow-xs hover:shadow-md relative cursor-pointer rounded-2xl w-full overflow-hidden"
       >
         <div className="space-y-3.5">
           {/* Header Row: Owner Avatar & Info, Status Pill, Bookmark, More Menu */}
@@ -886,12 +886,12 @@ export const IdeaCard = ({ idea, onIdeaUpdated, onIdeaDeleted }) => {
             className="pt-2.5 border-t border-slate-100/90 dark:border-slate-800/80 flex flex-col gap-2.5"
           >
             {/* Row 1: Social Actions (React, Comment, Repost, Share) */}
-            <div className="flex items-center justify-between gap-1 w-full text-slate-500 dark:text-slate-400">
+            <div className="flex items-center justify-between gap-1.5 w-full text-slate-500 dark:text-slate-400">
               {/* React Button */}
               <button
                 type="button"
                 onClick={handleToggleLike}
-                className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                   hasLiked
                     ? "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 font-bold"
                     : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
@@ -899,15 +899,15 @@ export const IdeaCard = ({ idea, onIdeaUpdated, onIdeaDeleted }) => {
                 title={hasLiked ? "Unlike" : "React"}
               >
                 <Heart className={`w-4 h-4 shrink-0 ${hasLiked ? "fill-rose-500 text-rose-500" : ""}`} />
-                <span>React</span>
-                {upvotes > 0 && <span className="text-xs font-bold ml-0.5">{upvotes}</span>}
+                <span className="truncate">React</span>
+                {upvotes > 0 && <span className="text-xs font-bold">{upvotes}</span>}
               </button>
 
               {/* Comment / Review Button */}
               <button
                 type="button"
                 onClick={handleToggleComments}
-                className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                   showComments
                     ? "text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/40 font-bold"
                     : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
@@ -915,15 +915,15 @@ export const IdeaCard = ({ idea, onIdeaUpdated, onIdeaDeleted }) => {
                 title="Comment"
               >
                 <MessageSquare className="w-4 h-4 shrink-0" />
-                <span>Comment</span>
-                {commentsCount > 0 && <span className="text-xs font-bold ml-0.5">{commentsCount}</span>}
+                <span className="truncate">Comment</span>
+                {commentsCount > 0 && <span className="text-xs font-bold">{commentsCount}</span>}
               </button>
 
-              {/* Repost Button */}
+              {/* Repost Button (Icon + Count only, no extra text) */}
               <button
                 type="button"
                 onClick={handleToggleRepost}
-                className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
                   hasReposted
                     ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 font-bold"
                     : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
@@ -931,19 +931,17 @@ export const IdeaCard = ({ idea, onIdeaUpdated, onIdeaDeleted }) => {
                 title={hasReposted ? "Undo Repost" : "Repost Idea to your network"}
               >
                 <Repeat2 className="w-4 h-4 shrink-0" />
-                <span>{hasReposted ? "Reposted" : "Repost"}</span>
-                {repostCount > 0 && <span className="text-xs font-bold ml-0.5">{repostCount}</span>}
+                {repostCount > 0 && <span className="text-xs font-bold">{repostCount}</span>}
               </button>
 
-              {/* Share Button */}
+              {/* Share Button (Icon only) */}
               <button
                 type="button"
                 onClick={handleShare}
-                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all"
+                className="flex items-center justify-center p-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all shrink-0"
                 title="Share Idea"
               >
                 <Share2 className="w-4 h-4 shrink-0" />
-                <span>Share</span>
               </button>
             </div>
 

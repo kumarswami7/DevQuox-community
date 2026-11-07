@@ -342,7 +342,7 @@ export const ProjectCard = ({ project, onProjectUpdated, onProjectDeleted }) => 
 
   return (
     <>
-      <Card className="glass-card hover:-translate-y-0.5 transition-all duration-300 flex flex-col group relative overflow-hidden border-slate-200/90 dark:border-slate-800/80 shadow-md hover:shadow-glow-subtle p-3.5 sm:p-5">
+      <Card className="glass-card hover:-translate-y-0.5 transition-all duration-300 flex flex-col group relative overflow-hidden border-slate-200/90 dark:border-slate-800/80 shadow-md hover:shadow-glow-subtle p-3.5 sm:p-5 w-full">
         {/* Subtle accent corner glow */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-primary-500/10 transition-colors" />
 
@@ -720,7 +720,7 @@ export const ProjectCard = ({ project, onProjectUpdated, onProjectDeleted }) => 
               <button
                 type="button"
                 onClick={() => setShowComments(!showComments)}
-                className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                   showComments
                     ? "text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/40 font-bold"
                     : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
@@ -728,16 +728,16 @@ export const ProjectCard = ({ project, onProjectUpdated, onProjectDeleted }) => 
                 title="Comment"
               >
                 <MessageSquare className="w-4 h-4 shrink-0" />
-                <span>Comment</span>
-                {commentsCount > 0 && <span className="text-xs font-bold ml-0.5">{commentsCount}</span>}
+                <span className="truncate">Comment</span>
+                {commentsCount > 0 && <span className="text-xs font-bold">{commentsCount}</span>}
               </button>
 
-              {/* Repost Trigger */}
+              {/* Repost Trigger (Icon + Count only, no extra text) */}
               <button
                 type="button"
                 onClick={() => setShowRepostModal(true)}
                 disabled={!isAuthenticated}
-                className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
                   hasReposted
                     ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 font-bold"
                     : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
@@ -745,19 +745,17 @@ export const ProjectCard = ({ project, onProjectUpdated, onProjectDeleted }) => 
                 title={hasReposted ? "Undo Repost" : "Repost Project to your network"}
               >
                 <Repeat2 className="w-4 h-4 shrink-0" />
-                <span>{hasReposted ? "Reposted" : "Repost"}</span>
-                {repostsCount > 0 && <span className="text-xs font-bold ml-0.5">{repostsCount}</span>}
+                {repostsCount > 0 && <span className="text-xs font-bold">{repostsCount}</span>}
               </button>
 
-              {/* Share Trigger */}
+              {/* Share Trigger (Icon only) */}
               <button
                 type="button"
                 onClick={handleShare}
-                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all"
+                className="flex items-center justify-center p-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all shrink-0"
                 title="Share Project"
               >
                 <Share2 className="w-4 h-4 shrink-0" />
-                <span>Share</span>
               </button>
             </div>
 
