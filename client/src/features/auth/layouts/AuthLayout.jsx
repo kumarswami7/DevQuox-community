@@ -9,19 +9,19 @@ export const AuthLayout = () => {
   const isRegister = location.pathname.includes("/register");
 
   return (
-    <div className="min-h-screen w-full bg-[#FAFAFC] dark:bg-[#0c1319] text-slate-900 dark:text-slate-100 flex flex-col justify-between selection:bg-primary-500 selection:text-white relative">
-      {/* Ambient Top Glow & Engineering Grid */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[350px] bg-[radial-gradient(ellipse_at_top,rgba(220,38,38,0.06),transparent_70%)] pointer-events-none" />
+    <div className="min-h-screen w-full bg-[#FAFAFC] dark:bg-[#0c1319] text-slate-900 dark:text-slate-100 flex flex-col justify-between selection:bg-primary-500 selection:text-white relative overflow-x-hidden">
+      {/* Ambient Top Glow & Engineering Grid (Strictly bounded to avoid mobile viewport stretching) */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[350px] bg-[radial-gradient(ellipse_at_top,rgba(220,38,38,0.06),transparent_70%)] pointer-events-none" />
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000006_1px,transparent_1px),linear-gradient(to_bottom,#00000006_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_80%_60%_at_50%_10%,#000_60%,transparent_100%)] pointer-events-none" />
 
       {/* Compact Top Navigation Bar */}
       <header className="relative z-30 w-full shrink-0 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
-        <div className="w-full flex items-center justify-between px-6 sm:px-10 lg:px-12 py-2.5 sm:py-3">
-          <Link to="/" className="flex items-center gap-2.5 group">
+        <div className="w-full flex items-center justify-between px-3.5 sm:px-8 lg:px-12 py-2.5 sm:py-3 gap-2">
+          <Link to="/" className="flex items-center gap-2 shrink-0 group">
             <DevquoxLogo size="md" />
           </Link>
 
-          <div className="flex items-center gap-4 text-xs">
+          <div className="flex items-center gap-2 sm:gap-4 text-xs shrink-0">
             <Link
               to="/"
               className="hidden sm:flex items-center gap-1.5 text-slate-500 hover:text-slate-900 font-semibold transition-colors"
@@ -34,20 +34,20 @@ export const AuthLayout = () => {
 
             {isRegister ? (
               <div className="flex items-center gap-2">
-                <span className="text-slate-500 hidden xs:inline">Already have an account?</span>
+                <span className="text-slate-500 hidden sm:inline">Already have an account?</span>
                 <Link
                   to="/login"
-                  className="px-3.5 py-1.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-bold transition-all shadow-xs"
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs whitespace-nowrap transition-all shadow-xs"
                 >
                   Log In
                 </Link>
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <span className="text-slate-500 hidden xs:inline">New to Devquox?</span>
+                <span className="text-slate-500 hidden sm:inline">New to Devquox?</span>
                 <Link
                   to="/register"
-                  className="px-3.5 py-1.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-bold transition-all shadow-sm shadow-primary-500/20"
+                  className="px-3 py-1.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-bold text-xs whitespace-nowrap transition-all shadow-sm shadow-primary-500/20"
                 >
                   Create Account
                 </Link>
@@ -57,27 +57,27 @@ export const AuthLayout = () => {
         </div>
       </header>
 
-      {/* Centered Main Stage (Natural Smooth Scroll for Full Forms) */}
-      <main className="relative z-20 flex-1 flex items-center justify-center px-4 py-6 sm:py-10 w-full">
+      {/* Centered Main Stage (Natural Smooth Scroll for Full Forms on All Devices) */}
+      <main className="relative z-20 flex-1 flex items-center justify-center px-3.5 sm:px-6 py-5 sm:py-10 w-full">
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25 }}
-          className="w-full flex justify-center my-auto"
+          className="w-full max-w-sm sm:max-w-md flex justify-center my-auto"
         >
           <Outlet />
         </motion.div>
       </main>
 
       {/* Compact Bottom Footer */}
-      <footer className="relative z-20 shrink-0 border-t border-slate-200/80 bg-white/80 backdrop-blur-sm py-2 sm:py-2.5 px-6">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-500">
-          <div className="flex items-center gap-1.5 font-medium">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+      <footer className="relative z-20 shrink-0 border-t border-slate-200/80 bg-white/80 backdrop-blur-sm py-2.5 sm:py-3 px-4 sm:px-6">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-500 text-center sm:text-left">
+          <div className="flex items-center justify-center gap-1.5 font-medium">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
             <span>256-bit SSL Encrypted • Escrow Protected Marketplace</span>
           </div>
 
-          <div className="flex items-center gap-4 font-semibold text-[11px] text-slate-500">
+          <div className="flex items-center justify-center gap-3 sm:gap-4 font-semibold text-[11px] text-slate-500">
             <Link to="/" className="hover:text-primary-600 transition-colors">Platform</Link>
             <Link to="/projects" className="hover:text-primary-600 transition-colors">Projects</Link>
             <Link to="/developers" className="hover:text-primary-600 transition-colors">Talent</Link>
