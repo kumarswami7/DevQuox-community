@@ -127,7 +127,9 @@ export const RegisterPage = () => {
       // Check backend to see if account already exists
       const checkRes = await authService.googleCheck({
         email: profile.email,
-        googleId: profile.googleId
+        googleId: profile.googleId,
+        accessToken: profile.accessToken,
+        credential: profile.credential,
       });
 
       if (checkRes.data?.exists) {
@@ -153,7 +155,25 @@ export const RegisterPage = () => {
       setStep(2);
     } catch (err) {
       console.error("Google check error:", err);
-      // If check fails due to network, still allow setting up profile
+      if (err.response?.status === 409 || err.response?.data?.accountExists) {
+        setIsGoogleLoading(false);
+        setExistingAccountError({
+          email: profile.email,
+          message: "An account already exists with this Google email. Please sign in instead."
+        });
+        return;
+      }
+      if (err.response?.status === 401) {
+        setIsGoogleLoading(false);
+        setApiError(err.response?.data?.message || "Google verification failed. Please try again.");
+        return;
+      }
+      if (err.response?.status === 405) {
+        setIsGoogleLoading(false);
+        setApiError("Authentication endpoint method not allowed (HTTP 405). Please verify backend deployment.");
+        return;
+      }
+      // If check fails due to temporary connection error, still allow setting up profile
       setGoogleVerifiedUser(profile);
       setEmailCredentials(null);
       setValue("fullName", profile.name);
@@ -296,6 +316,8 @@ export const RegisterPage = () => {
           email: googleVerifiedUser.email,
           googleId: googleVerifiedUser.googleId,
           avatar: googleVerifiedUser.avatar,
+          accessToken: googleVerifiedUser.accessToken,
+          credential: googleVerifiedUser.credential,
           role: selectedRole,
           title:
             data.title ||

@@ -78,6 +78,7 @@ export const createApp = () => {
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     })
   );
+  app.options('*', cors());
 
   // 4. Parsers & Static Files (with sensible request limits)
   app.use(cookieParser());
@@ -123,7 +124,8 @@ export const createApp = () => {
     });
   });
 
-  // 6. API Endpoints (supports both /api and /api/v1)
+  // 6. API Endpoints (supports root /auth, /api/auth, and /api/v1/auth)
+  app.use('/auth', authRouter);
   app.use('/api/auth', authRouter);
   app.use('/api/v1/auth', authRouter);
   app.use('/api/users', userRouter);

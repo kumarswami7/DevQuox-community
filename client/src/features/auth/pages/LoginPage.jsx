@@ -127,7 +127,9 @@ export const LoginPage = () => {
                     email: userInfo.email,
                     name: userInfo.name || userInfo.email.split("@")[0],
                     avatar: userInfo.picture || "",
-                    googleId: userInfo.sub
+                    googleId: userInfo.sub,
+                    accessToken: tokenResponse.access_token,
+                    credential: tokenResponse.credential,
                   });
 
                   if (backendRes.data?.needsRegistration) {
@@ -136,7 +138,9 @@ export const LoginPage = () => {
                       email: userInfo.email,
                       name: userInfo.name || userInfo.email.split("@")[0],
                       avatar: userInfo.picture || "",
-                      googleId: userInfo.sub
+                      googleId: userInfo.sub,
+                      accessToken: tokenResponse.access_token,
+                      credential: tokenResponse.credential,
                     });
                     return;
                   }
@@ -159,7 +163,9 @@ export const LoginPage = () => {
                       email: userInfo.email,
                       name: userInfo.name || userInfo.email.split("@")[0],
                       avatar: userInfo.picture || "",
-                      googleId: userInfo.sub
+                      googleId: userInfo.sub,
+                      accessToken: tokenResponse.access_token,
+                      credential: tokenResponse.credential,
                     });
                   } else {
                     setApiError(authErr.response?.data?.message || "Google Sign-In failed.");
