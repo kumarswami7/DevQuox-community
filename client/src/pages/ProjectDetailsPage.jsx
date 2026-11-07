@@ -22,10 +22,13 @@ import {
   ExternalLink,
   Lightbulb,
   Share2,
+  Edit3,
 } from 'lucide-react';
 import { projectService } from '../services/projectService';
 import { useAuthStore } from '../store';
 import { ShareModal } from '../components/ui/ShareModal';
+import { TechnologyIcon } from '../components/skills/TechnologyIcon';
+import { ProjectDetailsEditModal } from '../components/workspace/ProjectDetailsEditModal';
 
 export const ProjectDetailsPage = () => {
   const { id } = useParams();
@@ -43,7 +46,12 @@ export const ProjectDetailsPage = () => {
   // Application Modal state
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [coverLetter, setCoverLetter] = useState('');
-  const [proposedRate, setProposedRate] = useState('');
+  const [selectedRole, setSelectedRole] = useState('Full Stack Developer');
+  const [estimatedDuration, setEstimatedDuration] = useState('');
+  const [portfolioLinks, setPortfolioLinks] = useState(['']);
+  const [relevantSkills, setRelevantSkills] = useState([]);
+  const [newSkillInput, setNewSkillInput] = useState('');
+  const [availability, setAvailability] = useState('Immediate / Flexible');
   const [submittingApply, setSubmittingApply] = useState(false);
   const [applyError, setApplyError] = useState('');
   const [actionSuccess, setActionSuccess] = useState('');
@@ -51,6 +59,14 @@ export const ProjectDetailsPage = () => {
   const [processingAppId, setProcessingAppId] = useState(null);
   const [decisionModal, setDecisionModal] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [applicationTab, setApplicationTab] = useState('all');
+  const [compareApplicants, setCompareApplicants] = useState([]);
+  const [showCompareModal, setShowCompareModal] = useState(false);
+  const [togglingAppStatus, setTogglingAppStatus] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [isUpdatingProject, setIsUpdatingProject] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeletingProject, setIsDeletingProject] = useState(false);
 
   const currentUserId = currentUser?._id || currentUser?.id;
   const projectOwnerId = project?.owner?._id || project?.owner?.id || project?.owner;
@@ -122,17 +138,25 @@ export const ProjectDetailsPage = () => {
 
   const handleApplySubmit = async (e) => {
     e.preventDefault();
+    if (!isAppOpen) {
+      setApplyError('Applications for this project are currently closed.');
+      return;
+    }
     setApplyError('');
     setSubmittingApply(true);
     try {
       await projectService.applyToProject(id, {
         coverLetter: coverLetter.trim(),
-        proposedRate: proposedRate.trim(),
+        relevantRole: selectedRole,
+        estimatedDuration: estimatedDuration.trim() || undefined,
+        portfolioLinks: portfolioLinks.filter((l) => Boolean(l && l.trim())),
+        relevantSkills,
+        availability,
       });
       setShowApplyModal(false);
       setActionSuccess('Your proposal was successfully sent to the project owner!');
       await loadProject();
-      await loadApplications();
+      await loadTeamAndApplications();
     } catch (err) {
       setApplyError(err.response?.data?.message || 'Failed to submit application. Please check requirements.');
     } finally {
@@ -147,8 +171,87 @@ export const ProjectDetailsPage = () => {
       setActionSuccess('Proposal withdrawn successfully.');
       setMyApplication(null);
       await loadProject();
+      await loadTeamAndApplications();
     } catch (err) {
       setActionError(err.response?.data?.message || 'Failed to withdraw application.');
+    }
+  };
+
+  const handleToggleApplicationStatus = async () => {
+    if (!project?._id || togglingAppStatus) return;
+    const currentStatus = (project.applicationStatus || 'open') === 'open' && project.status === 'open' ? 'open' : 'closed';
+    const nextStatus = currentStatus === 'open' ? 'closed' : 'open';
+    try {
+      setTogglingAppStatus(true);
+      setActionError('');
+      // Optimistic update
+      setProject((prev) => ({
+        ...prev,
+        applicationStatus: nextStatus,
+        status: nextStatus === 'open' && prev.status === 'paused' ? 'open' : prev.status,
+      }));
+      const res = await projectService.toggleProjectApplicationStatus(project._id, nextStatus);
+      if (res.data?.project) {
+        setProject(res.data.project);
+      }
+      setActionSuccess(`Project applications are now ${nextStatus === 'open' ? 'OPEN' : 'CLOSED'}`);
+    } catch (err) {
+      setProject((prev) => ({ ...prev, applicationStatus: currentStatus }));
+      setActionError(err.response?.data?.message || 'Failed to update application status');
+    } finally {
+      setTogglingAppStatus(false);
+    }
+  };
+
+  const handleSaveProjectDetails = async (payload) => {
+    try {
+      setIsUpdatingProject(true);
+      setActionError('');
+      const res = await projectService.updateProject(id, payload);
+      const updatedProj = res.data?.project || res.data?.data || res.data;
+      if (updatedProj) {
+        setProject(updatedProj);
+      } else {
+        await loadProject();
+      }
+      setShowEditModal(false);
+      setActionSuccess('Project details updated successfully!');
+    } catch (err) {
+      setActionError(err.response?.data?.message || 'Failed to update project details');
+    } finally {
+      setIsUpdatingProject(false);
+    }
+  };
+
+  const handleConfirmDeleteProject = async () => {
+    if (!id || isDeletingProject) return;
+    try {
+      setIsDeletingProject(true);
+      setActionError('');
+      await projectService.deleteProject(id);
+      setActionSuccess('Project deleted successfully.');
+      setShowDeleteConfirm(false);
+      setTimeout(() => {
+        navigate('/my-projects');
+      }, 1000);
+    } catch (err) {
+      setActionError(err.response?.data?.message || 'Failed to delete project.');
+      setIsDeletingProject(false);
+    }
+  };
+
+  const handleShortlistApplication = async (appId) => {
+    setProcessingAppId(appId);
+    setActionError('');
+    setActionSuccess('');
+    try {
+      await projectService.shortlistApplication(appId);
+      setActionSuccess('Applicant added to shortlist!');
+      await loadTeamAndApplications();
+    } catch (err) {
+      setActionError(err.response?.data?.message || 'Failed to shortlist application');
+    } finally {
+      setProcessingAppId(null);
     }
   };
 
@@ -159,18 +262,21 @@ export const ProjectDetailsPage = () => {
     setActionError('');
     setActionSuccess('');
     try {
-      await projectService.updateApplicationStatus(appId, {
-        status,
-        decisionReason: decisionReason?.trim() || undefined,
-      });
-      setActionSuccess(
-        status === 'accepted'
-          ? 'Applicant accepted and added to project team!'
-          : 'Applicant proposal rejected.'
-      );
+      if (status === 'accepted') {
+        await projectService.acceptApplication(appId, decisionReason?.trim() || undefined);
+        setActionSuccess('Applicant accepted and added to project team!');
+      } else if (status === 'rejected') {
+        await projectService.rejectApplication(appId, decisionReason?.trim() || undefined);
+        setActionSuccess('Applicant proposal rejected.');
+      } else {
+        await projectService.updateApplicationStatus(appId, {
+          status,
+          decisionReason: decisionReason?.trim() || undefined,
+        });
+      }
       setDecisionModal(null);
       await loadProject();
-      await loadApplications();
+      await loadTeamAndApplications();
     } catch (err) {
       setActionError(err.response?.data?.message || `Failed to update application to ${status}`);
     } finally {
@@ -205,6 +311,7 @@ export const ProjectDetailsPage = () => {
   const acceptedCount = project.acceptedApplicantsCount || (project.members ? project.members.length : 0);
   const teamCapacity = project.teamSize || 1;
   const isCapacityFull = acceptedCount >= teamCapacity;
+  const isAppOpen = (project.applicationStatus || 'open') === 'open' && project.status === 'open';
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -253,19 +360,32 @@ export const ProjectDetailsPage = () => {
 
       {/* Main Project Header Card */}
       <Card className="p-6 md:p-8 space-y-6 border-slate-200 dark:border-slate-800 bg-white dark:bg-cardDark shadow-lg">
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-6 border-b border-slate-100 dark:border-slate-800">
-          <div className="space-y-2.5">
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6 pb-6 border-b border-slate-100 dark:border-slate-800">
+          <div className="space-y-2.5 min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wider text-primary-500 bg-primary-50 dark:bg-primary-950/40 px-2.5 py-1 rounded-md border border-primary-100 dark:border-primary-900/50">
                 {project.status ? project.status.replace('_', ' ') : 'Open Project'}
               </span>
+
+              {/* Explicit Application Open / Closed Status Pill */}
+              <span
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
+                  isAppOpen
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                    : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${isAppOpen ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                {isAppOpen ? 'Applications Open' : 'Applications Closed'}
+              </span>
+
               <span className="text-xs font-semibold text-slate-400">• {project.category}</span>
               {project.projectType && (
                 <span className="text-xs font-semibold text-slate-400">• {project.projectType.replace('_', ' ')}</span>
               )}
             </div>
 
-            <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white">{project.title}</h1>
+            <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white leading-tight">{project.title}</h1>
 
             <div className="flex items-center gap-2 text-xs text-slate-500 flex-wrap">
               <span>Posted by</span>
@@ -292,38 +412,103 @@ export const ProjectDetailsPage = () => {
             </div>
           </div>
 
-          {/* Action Buttons for Developer / Applicant */}
-          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
-            {(isOwner || myMembership?.isMember || myApplication?.status === 'accepted') && (
+          {/* Action Buttons for Developer / Applicant / Owner */}
+          <div className="flex items-center gap-2 shrink-0 flex-wrap lg:justify-end">
+            {isOwner && (
               <>
-                <Link to={`/messages?projectId=${project._id}`}>
-                  <Button
-                    size="md"
-                    variant="outline"
-                    className="gap-2 border-[#00a884] text-[#00a884] hover:bg-emerald-50 dark:hover:bg-emerald-950/30 font-bold"
-                    title="Open Project Team Chat"
-                  >
-                    <MessageSquare className="w-4 h-4 text-[#00a884]" />
-                    <span>Project Team Chat</span>
-                  </Button>
-                </Link>
-                <Link to={`/projects/${project._id}/workspace`}>
-                  <Button
-                    size="md"
-                    variant="primary"
-                    className="gap-2 shadow-glow-primary bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 text-white font-bold"
-                  >
-                    <Shield className="w-4 h-4" />
-                    <span>Project Workspace</span>
-                  </Button>
-                </Link>
+                {/* 1. Toggle Application Status */}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={togglingAppStatus}
+                  onClick={handleToggleApplicationStatus}
+                  className={`gap-1.5 whitespace-nowrap h-9 px-3 rounded-xl font-bold transition-all text-xs shrink-0 ${
+                    isAppOpen
+                      ? 'border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30'
+                      : 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30'
+                  }`}
+                  title={isAppOpen ? 'Close project to new applications' : 'Open project for applications'}
+                >
+                  {isAppOpen ? (
+                    <>
+                      <XCircle className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Close Applications</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>Open Applications</span>
+                    </>
+                  )}
+                </Button>
+
+                {/* 2. Edit Project (Icon Only) */}
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(true)}
+                  className="w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary-500 flex items-center justify-center transition-all shadow-xs shrink-0"
+                  title="Edit Project Details"
+                  aria-label="Edit Project"
+                >
+                  <Edit3 className="w-4 h-4 text-amber-500" />
+                </button>
+
+                {/* 3. Delete Project (Icon Only) */}
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="w-9 h-9 rounded-xl border border-rose-200 dark:border-rose-900/60 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600 flex items-center justify-center transition-all shadow-xs shrink-0"
+                  title="Delete Project"
+                  aria-label="Delete Project"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </>
             )}
+
+            {/* Team Chat (Icon Only) */}
+            {(isOwner || myMembership?.isMember || myApplication?.status === 'accepted') && (
+              <Link to={`/messages?projectId=${project._id}`} className="shrink-0">
+                <button
+                  type="button"
+                  className="w-9 h-9 rounded-xl border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 flex items-center justify-center transition-all shadow-xs"
+                  title="Project Team Chat"
+                  aria-label="Project Team Chat"
+                >
+                  <MessageSquare className="w-4 h-4 text-emerald-500" />
+                </button>
+              </Link>
+            )}
+
+            {/* Project Workspace (Primary Action) */}
+            {(isOwner || myMembership?.isMember || myApplication?.status === 'accepted') && (
+              <Link to={`/projects/${project._id}/workspace`} className="shrink-0">
+                <Button
+                  size="sm"
+                  variant="primary"
+                  className="gap-2 shadow-glow-primary bg-primary-600 hover:bg-primary-700 text-white font-bold whitespace-nowrap h-9 px-4 rounded-xl transition-all"
+                >
+                  <Shield className="w-4 h-4" />
+                  <span>Project Workspace</span>
+                </Button>
+              </Link>
+            )}
+
+            {/* Share Button (Icon Only) */}
+            <button
+              type="button"
+              onClick={() => setShowShareModal(true)}
+              className="w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary-500 flex items-center justify-center transition-all shadow-xs shrink-0"
+              title="Share Project"
+              aria-label="Share Project"
+            >
+              <Share2 className="w-4 h-4 text-primary-500" />
+            </button>
 
             {!isOwner && isAuthenticated && (
               <>
                 {myApplication ? (
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 shrink-0">
                     <Badge
                       variant={
                         myApplication.status === 'accepted'
@@ -332,7 +517,7 @@ export const ProjectDetailsPage = () => {
                           ? 'danger'
                           : 'warning'
                       }
-                      className="px-3 py-1.5 text-xs font-bold capitalize"
+                      className="px-3 py-1.5 text-xs font-bold capitalize whitespace-nowrap rounded-xl"
                     >
                       Proposal: {myApplication.status}
                     </Badge>
@@ -341,45 +526,46 @@ export const ProjectDetailsPage = () => {
                         size="sm"
                         variant="outline"
                         onClick={handleWithdrawMyApplication}
-                        className="text-xs text-rose-500 hover:text-rose-600 border-rose-200 dark:border-rose-900"
+                        className="text-xs text-rose-500 hover:text-rose-600 border-rose-200 dark:border-rose-900 whitespace-nowrap h-9 px-3 rounded-xl"
                       >
-                        Withdraw Proposal
+                        Withdraw
                       </Button>
                     )}
                   </div>
                 ) : (
                   <Button
-                    size="md"
-                    variant={isCapacityFull ? 'secondary' : 'primary'}
-                    disabled={isCapacityFull || project.status !== 'open'}
+                    size="sm"
+                    variant={isCapacityFull || !isAppOpen ? 'secondary' : 'primary'}
+                    disabled={isCapacityFull || !isAppOpen}
                     onClick={() => setShowApplyModal(true)}
-                    className="gap-2 shadow-glow-primary"
+                    className="gap-2 shadow-glow-primary whitespace-nowrap h-9 px-4 rounded-xl font-bold"
                   >
                     <Send className="w-4 h-4" />
-                    <span>{isCapacityFull ? 'Capacity Filled' : 'Apply to Project'}</span>
+                    <span>
+                      {isCapacityFull
+                        ? 'Capacity Filled'
+                        : !isAppOpen
+                        ? 'Applications Closed'
+                        : 'Apply to Project'}
+                    </span>
                   </Button>
                 )}
               </>
             )}
 
             {!isAuthenticated && (
-              <Link to="/login">
-                <Button size="md" variant="primary">
-                  Sign in to Apply
+              isAppOpen ? (
+                <Link to="/login" className="shrink-0">
+                  <Button size="sm" variant="primary" className="whitespace-nowrap h-9 px-4 rounded-xl font-bold">
+                    Sign in to Apply
+                  </Button>
+                </Link>
+              ) : (
+                <Button size="sm" variant="secondary" disabled className="whitespace-nowrap h-9 px-4 rounded-xl font-bold">
+                  Applications Closed
                 </Button>
-              </Link>
+              )
             )}
-
-            <Button
-              size="md"
-              variant="outline"
-              onClick={() => setShowShareModal(true)}
-              className="gap-2 font-bold border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-              title="Share Project"
-            >
-              <Share2 className="w-4 h-4 text-primary-500" />
-              <span>Share</span>
-            </Button>
           </div>
         </div>
 
@@ -431,9 +617,9 @@ export const ProjectDetailsPage = () => {
         {/* Project Key Details Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-3 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl text-xs">
           <div>
-            <span className="text-slate-400 font-semibold block mb-0.5">Budget</span>
-            <span className="font-bold text-emerald-500 text-sm">
-              {project.budget || 'Negotiable / Flexible'}
+            <span className="text-slate-400 font-semibold block mb-0.5">Project Type</span>
+            <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">
+              {project.category || (project.projectType === 'collaboration' ? 'Community Project' : 'Developer Squad')}
             </span>
           </div>
           <div>
@@ -468,14 +654,20 @@ export const ProjectDetailsPage = () => {
           </p>
         </div>
 
-        {/* Skills */}
-        <div className="space-y-2">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Required Skills & Tech Stack</h3>
-          <div className="flex flex-wrap gap-1.5">
+        {/* Required Skills & Tech Stack with Official Technology Logos */}
+        <div className="space-y-2.5">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+            Required Skills & Tech Stack
+          </h3>
+          <div className="flex flex-wrap gap-2">
             {(project.requiredSkills || []).map((skill) => (
-              <Badge key={skill} variant="secondary">
-                {skill}
-              </Badge>
+              <span
+                key={skill}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800/90 text-slate-800 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/80 hover:border-primary-400 dark:hover:border-primary-500 transition-colors shadow-2xs"
+              >
+                <TechnologyIcon name={skill} size="sm" />
+                <span>{skill}</span>
+              </span>
             ))}
           </div>
         </div>
@@ -552,157 +744,326 @@ export const ProjectDetailsPage = () => {
 
       {/* Project Owner: Incoming Applicants & Management */}
       {isOwner && (
-        <Card className="p-6 space-y-4 border-slate-200 dark:border-slate-800 bg-white dark:bg-cardDark shadow-md">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+        <Card className="p-6 space-y-5 border-slate-200 dark:border-slate-800 bg-white dark:bg-cardDark shadow-md">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Users className="w-5 h-5 text-primary-500" />
-                Submitted Proposals ({applications.length})
+                Applicant Pipeline ({applications.length})
               </h2>
               <p className="text-xs text-slate-500">
-                Review applicant proposals and accept developers to fill the {teamCapacity} position(s)
+                Review applicant proposals, shortlist contenders, and accept developers to fill the {teamCapacity} position(s)
               </p>
             </div>
-            <span className="text-xs font-bold text-slate-600 dark:text-slate-400">
-              Capacity: {acceptedCount} of {teamCapacity} accepted
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                Capacity: {acceptedCount} of {teamCapacity} accepted
+              </span>
+              {compareApplicants.length >= 2 && (
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => setShowCompareModal(true)}
+                  className="text-xs font-bold gap-1 bg-indigo-600 hover:bg-indigo-700"
+                >
+                  <span>Compare ({compareApplicants.length})</span>
+                </Button>
+              )}
+            </div>
           </div>
 
-          {applications.length > 0 ? (
-            <div className="space-y-3">
-              {applications.map((app) => {
-                const applicant = app.applicant || app.applicantSnapshot || {};
-                const isPending = app.status === 'pending';
+          {/* Status Filter Tabs */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs font-semibold">
+            {[
+              { id: 'all', label: 'All', count: applications.length },
+              { id: 'pending', label: 'Pending', count: applications.filter((a) => a.status === 'pending').length },
+              { id: 'under_review', label: 'Under Review', count: applications.filter((a) => a.status === 'under_review').length },
+              { id: 'shortlisted', label: 'Shortlisted', count: applications.filter((a) => a.status === 'shortlisted').length },
+              { id: 'accepted', label: 'Accepted', count: applications.filter((a) => a.status === 'accepted').length },
+              { id: 'rejected', label: 'Rejected', count: applications.filter((a) => a.status === 'rejected').length },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setApplicationTab(tab.id)}
+                className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                  applicationTab === tab.id
+                    ? 'bg-primary-500 text-white font-bold shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <span>{tab.label}</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                  applicationTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                }`}>
+                  {tab.count}
+                </span>
+              </button>
+            ))}
+          </div>
 
-                return (
-                  <div
-                    key={app._id}
-                    className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 flex flex-col sm:flex-row sm:items-start justify-between gap-4"
-                  >
-                    <div className="flex items-start gap-3 flex-1 min-w-0">
-                      <Avatar
-                        src={applicant.avatar}
-                        name={applicant.name || 'Applicant'}
-                        size="md"
-                      />
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-xs font-bold text-slate-900 dark:text-white">
-                            {applicant.name || 'Anonymous Developer'}
-                          </h4>
-                          <Badge
-                            variant={
-                              app.status === 'accepted'
-                                ? 'success'
-                                : app.status === 'rejected'
-                                ? 'danger'
-                                : app.status === 'withdrawn'
-                                ? 'secondary'
-                                : 'warning'
-                            }
-                            className="text-[10px] uppercase font-bold"
-                          >
-                            {app.status}
-                          </Badge>
+          {(() => {
+            const filteredApps = applicationTab === 'all'
+              ? applications
+              : applications.filter((a) => a.status === applicationTab);
+
+            if (filteredApps.length === 0) {
+              return (
+                <div className="py-10 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl space-y-2">
+                  <Users className="w-8 h-8 text-slate-400 mx-auto" />
+                  <p className="text-xs text-slate-500">
+                    No proposals found in "{applicationTab.replace('_', ' ')}" stage.
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-3">
+                {filteredApps.map((app) => {
+                  const applicant = app.applicant || app.applicantSnapshot || {};
+                  const isPending = app.status === 'pending' || app.status === 'under_review';
+                  const isShortlisted = app.status === 'shortlisted';
+                  const isSelectedForCompare = compareApplicants.some((ca) => ca._id === app._id);
+
+                  return (
+                    <div
+                      key={app._id}
+                      className={`p-4 rounded-xl border transition-all ${
+                        app.status === 'accepted'
+                          ? 'border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/20 dark:bg-emerald-950/10'
+                          : app.status === 'shortlisted'
+                          ? 'border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/20 dark:bg-indigo-950/10'
+                          : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40'
+                      } flex flex-col gap-3`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          {/* Checkbox for applicant comparison */}
+                          <input
+                            type="checkbox"
+                            checked={isSelectedForCompare}
+                            onChange={() => {
+                              if (isSelectedForCompare) {
+                                setCompareApplicants((prev) => prev.filter((ca) => ca._id !== app._id));
+                              } else {
+                                if (compareApplicants.length >= 3) {
+                                  alert('You can compare a maximum of 3 applicants at once.');
+                                  return;
+                                }
+                                setCompareApplicants((prev) => [...prev, app]);
+                              }
+                            }}
+                            className="mt-1 rounded text-primary-500 focus:ring-primary-500 cursor-pointer"
+                            title="Select for comparison"
+                          />
+
+                          <Avatar
+                            src={applicant.avatar}
+                            name={applicant.name || 'Applicant'}
+                            size="md"
+                          />
+                          <div className="space-y-1.5 flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Link
+                                to={`/profile/${applicant.username || applicant._id}`}
+                                className="text-xs font-bold text-slate-900 dark:text-white hover:text-primary-500"
+                              >
+                                {applicant.name || 'Anonymous Developer'}
+                              </Link>
+
+                              <span
+                                className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${
+                                  app.status === 'accepted'
+                                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                    : app.status === 'shortlisted'
+                                    ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
+                                    : app.status === 'under_review'
+                                    ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                                    : app.status === 'rejected'
+                                    ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+                                    : app.status === 'withdrawn'
+                                    ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                                    : 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                                }`}
+                              >
+                                {app.status.replace('_', ' ')}
+                              </span>
+
+                              {app.rateType && (
+                                <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">
+                                  • {app.rateType}
+                                </span>
+                              )}
+                            </div>
+
+                            {applicant.headline && (
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                                {applicant.headline}
+                              </p>
+                            )}
+
+                            {/* Cover Letter */}
+                            <p className="text-xs text-slate-700 dark:text-slate-300 bg-white dark:bg-cardDark p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-800 whitespace-pre-line">
+                              "{app.coverLetter || 'No cover letter provided.'}"
+                            </p>
+
+                            {/* Skills / Tech */}
+                            {Array.isArray(app.relevantSkills) && app.relevantSkills.length > 0 && (
+                              <div className="flex flex-wrap items-center gap-1 pt-1">
+                                <span className="text-[10px] font-bold text-slate-400 mr-1">Skills:</span>
+                                {app.relevantSkills.map((sk) => (
+                                  <span
+                                    key={sk}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60"
+                                  >
+                                    <TechnologyIcon name={sk} size="xs" />
+                                    <span>{sk}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Portfolio Links */}
+                            {Array.isArray(app.portfolioLinks) && app.portfolioLinks.length > 0 && (
+                              <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px]">
+                                <span className="font-bold text-slate-400">Links:</span>
+                                {app.portfolioLinks.map((link, lidx) => (
+                                  <a
+                                    key={lidx}
+                                    href={link.startsWith('http') ? link : `https://${link}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 text-primary-500 hover:underline"
+                                  >
+                                    <ExternalLink className="w-3 h-3" />
+                                    <span>Portfolio #{lidx + 1}</span>
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Rate, Duration, Availability, Date */}
+                            <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400 pt-1">
+                              {app.proposedRate && (
+                                <span className="font-bold text-emerald-500">Rate: {app.proposedRate}</span>
+                              )}
+                              {app.estimatedDuration && (
+                                <span>Est. Duration: {app.estimatedDuration}</span>
+                              )}
+                              {app.availability && (
+                                <span>Availability: {app.availability}</span>
+                              )}
+                              <span>Applied: {new Date(app.createdAt).toLocaleDateString()}</span>
+                            </div>
+                          </div>
                         </div>
 
-                        {applicant.headline && (
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                            {applicant.headline}
-                          </p>
-                        )}
-
-                        <p className="text-xs text-slate-700 dark:text-slate-300 bg-white dark:bg-cardDark p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-800">
-                          "{app.coverLetter || 'No cover letter provided.'}"
-                        </p>
-
-                        <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400 pt-1">
-                          {app.proposedRate && (
-                            <span className="font-bold text-emerald-500">Rate: {app.proposedRate}</span>
+                        {/* Owner Decision Action Buttons */}
+                        <div className="flex items-center gap-2 self-end sm:self-center shrink-0 flex-wrap">
+                          {/* Chat with applicant */}
+                          {applicant._id && (
+                            <Link to={`/messages?userId=${applicant._id}`}>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-xs gap-1 border-slate-300 dark:border-slate-700"
+                                title="Chat with Applicant"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5 text-primary-500" />
+                                <span>Chat</span>
+                              </Button>
+                            </Link>
                           )}
-                          <span>Applied: {new Date(app.createdAt).toLocaleDateString()}</span>
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* Owner Action Decision Buttons */}
-                    <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                      {isPending ? (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="primary"
-                            disabled={isCapacityFull || processingAppId === app._id}
-                            isLoading={processingAppId === app._id}
-                            onClick={() =>
-                              setDecisionModal({
-                                appId: app._id,
-                                status: 'accepted',
-                                applicantName: applicant.name || 'Applicant',
-                                decisionReason: '',
-                              })
-                            }
-                            className="text-xs gap-1.5"
-                          >
-                            <CheckCircle className="w-3.5 h-3.5" />
-                            <span>Accept</span>
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={processingAppId === app._id}
-                            onClick={() =>
-                              setDecisionModal({
-                                appId: app._id,
-                                status: 'rejected',
-                                applicantName: applicant.name || 'Applicant',
-                                decisionReason: '',
-                              })
-                            }
-                            className="text-xs text-rose-500 hover:text-rose-600 border-rose-200 dark:border-rose-900"
-                          >
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Reject</span>
-                          </Button>
-                        </>
-                      ) : (
-                        <div className="text-right">
-                          <span className="text-xs font-semibold text-slate-400 italic block">
-                            Decision: {app.status}
-                          </span>
-                          {app.decisionReason && (
-                            <span className="text-[11px] text-slate-500 block max-w-xs truncate">
-                              Note: {app.decisionReason}
+                          {(isPending || isShortlisted) && (
+                            <>
+                              {!isShortlisted && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={processingAppId === app._id}
+                                  isLoading={processingAppId === app._id}
+                                  onClick={() => handleShortlistApplication(app._id)}
+                                  className="text-xs gap-1 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                                >
+                                  <span>Shortlist</span>
+                                </Button>
+                              )}
+
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                disabled={isCapacityFull || processingAppId === app._id}
+                                isLoading={processingAppId === app._id}
+                                onClick={() =>
+                                  setDecisionModal({
+                                    appId: app._id,
+                                    status: 'accepted',
+                                    applicantName: applicant.name || 'Applicant',
+                                    decisionReason: '',
+                                  })
+                                }
+                                className="text-xs gap-1.5"
+                              >
+                                <CheckCircle className="w-3.5 h-3.5" />
+                                <span>Accept</span>
+                              </Button>
+
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={processingAppId === app._id}
+                                onClick={() =>
+                                  setDecisionModal({
+                                    appId: app._id,
+                                    status: 'rejected',
+                                    applicantName: applicant.name || 'Applicant',
+                                    decisionReason: '',
+                                  })
+                                }
+                                className="text-xs text-rose-500 hover:text-rose-600 border-rose-200 dark:border-rose-900"
+                              >
+                                <XCircle className="w-3.5 h-3.5" />
+                                <span>Reject</span>
+                              </Button>
+                            </>
+                          )}
+
+                          {app.status === 'accepted' && (
+                            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                              ✓ Team Member
+                            </span>
+                          )}
+
+                          {app.status === 'rejected' && (
+                            <span className="text-xs font-semibold text-rose-500 bg-rose-50 dark:bg-rose-950/40 px-3 py-1.5 rounded-lg border border-rose-200 dark:border-rose-900">
+                              Declined
                             </span>
                           )}
                         </div>
-                      )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="py-12 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl space-y-2">
-              <Users className="w-8 h-8 text-slate-400 mx-auto" />
-              <p className="text-xs text-slate-500">No proposals submitted for this project yet.</p>
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            );
+          })()}
         </Card>
       )}
 
       {/* Application Submission Modal */}
       {showApplyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-          <Card className="w-full max-w-lg p-6 space-y-4 shadow-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-cardDark">
+          <Card className="w-full max-w-lg p-6 space-y-4 shadow-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-cardDark max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">Apply to Work on Project</h3>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">Submit Project Proposal</h3>
                 <p className="text-xs text-slate-500">{project.title}</p>
               </div>
               <button
                 onClick={() => setShowApplyModal(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -715,43 +1076,288 @@ export const ProjectDetailsPage = () => {
             )}
 
             <form onSubmit={handleApplySubmit} className="space-y-4">
+              {/* Cover Letter */}
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                  Cover Letter / Introduction *
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                    Cover Letter & Solution Approach *
+                  </label>
+                  <span className={`text-[10px] font-mono ${coverLetter.length > 3000 ? 'text-rose-500 font-bold' : 'text-slate-400'}`}>
+                    {coverLetter.length}/3000
+                  </span>
+                </div>
                 <textarea
                   required
                   rows={4}
                   value={coverLetter}
                   onChange={(e) => setCoverLetter(e.target.value)}
-                  placeholder="Introduce yourself, describe relevant experience, and explain why you're a great fit for this project..."
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:border-primary-500 focus:outline-none"
+                  placeholder="Introduce yourself, describe relevant engineering experience, architecture suggestions, and why you are the best fit for this project..."
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:border-primary-500 focus:outline-none"
                 />
               </div>
 
+              {/* Target Contribution Role */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                  Proposed Rate / Compensation (Optional)
+                  Target Role / Contribution Focus
                 </label>
-                <input
-                  type="text"
-                  value={proposedRate}
-                  onChange={(e) => setProposedRate(e.target.value)}
-                  placeholder="e.g., $1,500 total or $40/hr"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:border-primary-500 focus:outline-none"
-                />
+                <select
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:border-primary-500 focus:outline-none cursor-pointer font-medium"
+                >
+                  <option value="Full Stack Developer">Full Stack Developer</option>
+                  <option value="Frontend Developer">Frontend Developer</option>
+                  <option value="Backend Developer">Backend Developer</option>
+                  <option value="Mobile App Developer">Mobile App Developer</option>
+                  <option value="UI/UX Designer">UI/UX Designer</option>
+                  <option value="DevOps & Cloud Engineer">DevOps & Cloud Engineer</option>
+                  <option value="QA / Test Automation">QA / Test Automation</option>
+                  <option value="Technical Contributor">Technical Contributor</option>
+                </select>
+              </div>
+
+              {/* Estimated Duration & Availability */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                    Estimated Duration
+                  </label>
+                  <input
+                    type="text"
+                    value={estimatedDuration}
+                    onChange={(e) => setEstimatedDuration(e.target.value)}
+                    placeholder="e.g., 2 Weeks, 1 Month"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:border-primary-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                    Availability
+                  </label>
+                  <select
+                    value={availability}
+                    onChange={(e) => setAvailability(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:border-primary-500 focus:outline-none cursor-pointer"
+                  >
+                    <option value="Immediate / Flexible">Immediate / Flexible</option>
+                    <option value="10 - 20 hrs / week">Part-Time (10 - 20 hrs / week)</option>
+                    <option value="Full-Time (35 - 40 hrs / week)">Full-Time (35 - 40 hrs / week)</option>
+                    <option value="Weekends only">Weekends only</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Relevant Skills */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                  Relevant Skills You Bring
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newSkillInput}
+                    onChange={(e) => setNewSkillInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const s = newSkillInput.trim();
+                        if (s && !relevantSkills.includes(s)) {
+                          setRelevantSkills([...relevantSkills, s]);
+                          setNewSkillInput('');
+                        }
+                      }
+                    }}
+                    placeholder="Type skill & press Enter (e.g. React, Docker, Python)"
+                    className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:border-primary-500 focus:outline-none"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const s = newSkillInput.trim();
+                      if (s && !relevantSkills.includes(s)) {
+                        setRelevantSkills([...relevantSkills, s]);
+                        setNewSkillInput('');
+                      }
+                    }}
+                    className="text-xs"
+                  >
+                    Add
+                  </Button>
+                </div>
+                {relevantSkills.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {relevantSkills.map((sk) => (
+                      <span
+                        key={sk}
+                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary-50 dark:bg-primary-950/40 text-primary-700 dark:text-primary-300 border border-primary-200/60 dark:border-primary-900/40"
+                      >
+                        <span>{sk}</span>
+                        <button
+                          type="button"
+                          onClick={() => setRelevantSkills(relevantSkills.filter((item) => item !== sk))}
+                          className="hover:text-rose-500"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Portfolio & GitHub Links */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
+                  <Github className="w-3.5 h-3.5" />
+                  <span>GitHub & Portfolio Links</span>
+                  <span className="text-[11px] font-normal text-slate-400 lowercase">(optional)</span>
+                </label>
+                {portfolioLinks.map((link, idx) => (
+                  <div key={idx} className="flex gap-2">
+                    <input
+                      type="url"
+                      value={link}
+                      onChange={(e) => {
+                        const updated = [...portfolioLinks];
+                        updated[idx] = e.target.value;
+                        setPortfolioLinks(updated);
+                      }}
+                      placeholder="https://github.com/myrepo or https://myportfolio.dev"
+                      className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:border-primary-500 focus:outline-none"
+                    />
+                    {portfolioLinks.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPortfolioLinks(portfolioLinks.filter((_, i) => i !== idx))}
+                        className="text-xs text-rose-500"
+                      >
+                        ×
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                {portfolioLinks.length < 5 && (
+                  <button
+                    type="button"
+                    onClick={() => setPortfolioLinks([...portfolioLinks, ''])}
+                    className="text-xs font-semibold text-primary-500 hover:underline pt-0.5"
+                  >
+                    + Add Another Link
+                  </button>
+                )}
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <Button type="button" variant="outline" size="sm" onClick={() => setShowApplyModal(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" variant="primary" size="sm" isLoading={submittingApply} className="gap-1.5">
+                <Button type="submit" variant="primary" size="sm" isLoading={submittingApply} className="gap-1.5 shadow-glow-primary">
                   <Send className="w-4 h-4" />
                   <span>Send Proposal</span>
                 </Button>
               </div>
             </form>
+          </Card>
+        </div>
+      )}
+
+      {/* Side-by-Side Applicant Comparison Modal */}
+      {showCompareModal && compareApplicants.length >= 2 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <Card className="w-full max-w-4xl p-6 space-y-4 bg-white dark:bg-cardDark border-slate-200 dark:border-slate-800 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Applicant Comparison ({compareApplicants.length} Candidates)
+                </h3>
+                <p className="text-xs text-slate-500">Side-by-side evaluation of proposals and qualifications</p>
+              </div>
+              <button
+                onClick={() => setShowCompareModal(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {compareApplicants.map((app) => {
+                const applicant = app.applicant || app.applicantSnapshot || {};
+                return (
+                  <div
+                    key={app._id}
+                    className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Avatar src={applicant.avatar} name={applicant.name} size="md" />
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white">{applicant.name}</h4>
+                        <p className="text-[11px] text-slate-500">{applicant.headline || 'Developer'}</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1 text-xs">
+                      <span className="font-bold text-slate-400 block uppercase text-[10px]">Role / Focus</span>
+                      <span className="font-bold text-primary-600 dark:text-primary-400">{app.relevantRole || 'Developer'}</span>
+                    </div>
+
+                    <div className="space-y-1 text-xs">
+                      <span className="font-bold text-slate-400 block uppercase text-[10px]">Estimated Duration</span>
+                      <span className="text-slate-800 dark:text-slate-200">{app.estimatedDuration || 'Not specified'}</span>
+                    </div>
+
+                    <div className="space-y-1 text-xs">
+                      <span className="font-bold text-slate-400 block uppercase text-[10px]">Availability</span>
+                      <span className="text-slate-800 dark:text-slate-200">{app.availability || 'Flexible'}</span>
+                    </div>
+
+                    <div className="space-y-1 text-xs">
+                      <span className="font-bold text-slate-400 block uppercase text-[10px]">Skills</span>
+                      <div className="flex flex-wrap gap-1">
+                        {(app.relevantSkills || []).map((sk) => (
+                          <span key={sk} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold border border-slate-300/60 dark:border-slate-700">
+                            <TechnologyIcon name={sk} size="xs" />
+                            <span>{sk}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1 text-xs">
+                      <span className="font-bold text-slate-400 block uppercase text-[10px]">Cover Letter</span>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-300 bg-white dark:bg-cardDark p-2 rounded border border-slate-200 dark:border-slate-800 line-clamp-4">
+                        "{app.coverLetter}"
+                      </p>
+                    </div>
+
+                    <div className="pt-2 flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        onClick={() => {
+                          setShowCompareModal(false);
+                          setDecisionModal({
+                            appId: app._id,
+                            status: 'accepted',
+                            applicantName: applicant.name || 'Applicant',
+                            decisionReason: '',
+                          });
+                        }}
+                        className="w-full text-xs"
+                      >
+                        Accept This Candidate
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </Card>
         </div>
       )}
@@ -854,6 +1460,61 @@ export const ProjectDetailsPage = () => {
           </Card>
         </div>
       )}
+      {/* Project Details Edit Modal (Owner Authority) */}
+      {isOwner && (
+        <ProjectDetailsEditModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          project={project}
+          onSave={handleSaveProjectDetails}
+          isProcessing={isUpdatingProject}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {isOwner && showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <Card className="w-full max-w-md p-6 space-y-4 shadow-2xl border-rose-200 dark:border-rose-900 bg-white dark:bg-cardDark">
+            <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/40 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">Delete Project</h3>
+                <p className="text-xs text-slate-500">This action cannot be undone</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              Are you sure you want to permanently delete <strong>"{project.title}"</strong>? All associated proposals and project data will be removed.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={isDeletingProject}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                size="sm"
+                onClick={handleConfirmDeleteProject}
+                isLoading={isDeletingProject}
+                className="gap-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>{isDeletingProject ? 'Deleting...' : 'Confirm Delete'}</span>
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
       {/* Universal Share Modal */}
       {project && (
         <ShareModal

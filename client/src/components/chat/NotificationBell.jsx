@@ -201,7 +201,7 @@ export const NotificationBell = ({ className = '' }) => {
                           ? 'bg-sky-100 text-sky-600 dark:bg-sky-950/60 dark:text-sky-400'
                           : isProject
                           ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400'
-                          : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400'
+                          : 'bg-primary-100 text-primary-600 dark:bg-primary-950/60 dark:text-primary-400'
                       }`}
                     >
                       {isMsg ? <MessageSquare className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />}

@@ -12,14 +12,14 @@ import { emitToProject, emitToUser, revokeUserProjectAccess } from '../utils/soc
 export const applicationRouter = express.Router();
 
 // ==========================================
-// 1. GET /api/applications/my-applications - Applicant's proposals
+// 1. GET /api/applications/my-applications & GET /api/applications/my - Applicant's proposals
 // ==========================================
-applicationRouter.get('/my-applications', protect, async (req, res, next) => {
+const getMyApplicationsHandler = async (req, res, next) => {
   try {
     const applications = await Application.find({ applicant: req.user._id })
       .populate({
         path: 'project',
-        select: 'title description category budget duration status experienceLevel teamSize acceptedApplicantsCount owner',
+        select: 'title summary description category budget duration status experienceLevel teamSize acceptedApplicantsCount owner coverImage requiredSkills deadline applicationDeadline',
         populate: { path: 'owner', select: 'name username email avatar avatarUrl role' },
       })
       .sort({ createdAt: -1 });
@@ -33,7 +33,10 @@ applicationRouter.get('/my-applications', protect, async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-});
+};
+
+applicationRouter.get('/my-applications', protect, getMyApplicationsHandler);
+applicationRouter.get('/my', protect, getMyApplicationsHandler);
 
 // ==========================================
 // 2. GET /api/applications/project/:projectId - Applications for project (Owner only)
@@ -65,7 +68,7 @@ applicationRouter.get('/project/:projectId', protect, async (req, res, next) => 
     const query = { project: project._id };
     if (req.query.status && typeof req.query.status === 'string') {
       const normStatus = req.query.status.toLowerCase().trim();
-      if (['pending', 'accepted', 'rejected', 'withdrawn'].includes(normStatus)) {
+      if (['pending', 'under_review', 'shortlisted', 'accepted', 'rejected', 'withdrawn'].includes(normStatus)) {
         query.status = normStatus;
       }
     }
@@ -132,9 +135,9 @@ applicationRouter.get('/:id', protect, async (req, res, next) => {
 });
 
 // ==========================================
-// 4. PATCH /api/applications/:id/status - Accept or Reject Proposal
+// 4. PATCH /api/applications/:id/status - Status Transition Pipeline
 // ==========================================
-applicationRouter.patch('/:id/status', protect, async (req, res, next) => {
+const updateApplicationStatus = async (req, res, next) => {
   try {
     if (!req.params.id || req.params.id === 'undefined') {
       return res.status(400).json({ success: false, message: 'Application ID is required' });
@@ -143,10 +146,10 @@ applicationRouter.patch('/:id/status', protect, async (req, res, next) => {
     const { status, decisionReason } = req.body || {};
     const targetStatus = status ? status.toLowerCase().trim() : '';
 
-    if (!['accepted', 'rejected'].includes(targetStatus)) {
+    if (!['under_review', 'shortlisted', 'accepted', 'rejected'].includes(targetStatus)) {
       return res.status(400).json({
         success: false,
-        message: 'Status must be updated to either "accepted" or "rejected"',
+        message: 'Status must be updated to "under_review", "shortlisted", "accepted", or "rejected"',
       });
     }
 
@@ -172,7 +175,7 @@ applicationRouter.patch('/:id/status', protect, async (req, res, next) => {
     if (!isOwner && !isAdmin) {
       return res.status(403).json({
         success: false,
-        message: 'Only the project owner can accept or reject applications',
+        message: 'Only the project owner can update application statuses',
       });
     }
 
@@ -235,6 +238,82 @@ applicationRouter.patch('/:id/status', protect, async (req, res, next) => {
       return res.status(400).json({
         success: false,
         message: `Cannot accept applications for a ${project.status} project`,
+      });
+    }
+
+    // ── 4a. Handle Under Review ──────────────────────────────────────────
+    if (targetStatus === 'under_review') {
+      if (application.status !== 'pending') {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot move application with status "${application.status}" to under review`,
+        });
+      }
+      application.status = 'under_review';
+      application.underReviewAt = new Date();
+      application.reviewedAt = new Date();
+      application.reviewedBy = req.user._id;
+      if (decisionReason) application.decisionReason = decisionReason.trim();
+      await application.save();
+
+      await sendNotification({
+        recipient: application.applicant,
+        sender: req.user._id,
+        type: 'application',
+        title: 'Application Under Review ⏳',
+        message: `Your application to "${project.title}" is now under review by the project owner.`,
+        link: `/projects/${project._id}`,
+      });
+
+      emitToUser(application.applicant, 'application:under_review', {
+        applicationId: application._id,
+        status: 'under_review',
+        project: { _id: project._id, title: project.title },
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Application marked as under review',
+        application,
+        data: application,
+      });
+    }
+
+    // ── 4b. Handle Shortlisted ───────────────────────────────────────────
+    if (targetStatus === 'shortlisted') {
+      if (!['pending', 'under_review'].includes(application.status)) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot shortlist an application with status "${application.status}"`,
+        });
+      }
+      application.status = 'shortlisted';
+      application.shortlistedAt = new Date();
+      application.reviewedAt = new Date();
+      application.reviewedBy = req.user._id;
+      if (decisionReason) application.decisionReason = decisionReason.trim();
+      await application.save();
+
+      await sendNotification({
+        recipient: application.applicant,
+        sender: req.user._id,
+        type: 'application',
+        title: 'You Have Been Shortlisted! 🌟',
+        message: `Congratulations! You have been shortlisted for "${project.title}". The project owner will reach out soon.`,
+        link: `/projects/${project._id}`,
+      });
+
+      emitToUser(application.applicant, 'application:shortlisted', {
+        applicationId: application._id,
+        status: 'shortlisted',
+        project: { _id: project._id, title: project.title },
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Applicant successfully shortlisted',
+        application,
+        data: application,
       });
     }
 
@@ -326,6 +405,7 @@ applicationRouter.patch('/:id/status', protect, async (req, res, next) => {
       }
 
       application.status = 'accepted';
+      application.acceptedAt = new Date();
       application.reviewedAt = new Date();
       application.reviewedBy = req.user._id;
       if (decisionReason) application.decisionReason = decisionReason.trim();
@@ -462,12 +542,38 @@ applicationRouter.patch('/:id/status', protect, async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+};
+
+// ==========================================
+// 4. PATCH /api/applications/:id/status - Status Transition Pipeline
+// ==========================================
+applicationRouter.patch('/:id/status', protect, updateApplicationStatus);
+
+// Dedicated action endpoints
+applicationRouter.post('/:id/shortlist', protect, (req, res, next) => {
+  req.body = { ...req.body, status: 'shortlisted' };
+  return updateApplicationStatus(req, res, next);
+});
+
+applicationRouter.post('/:id/under-review', protect, (req, res, next) => {
+  req.body = { ...req.body, status: 'under_review' };
+  return updateApplicationStatus(req, res, next);
+});
+
+applicationRouter.post('/:id/accept', protect, (req, res, next) => {
+  req.body = { ...req.body, status: 'accepted' };
+  return updateApplicationStatus(req, res, next);
+});
+
+applicationRouter.post('/:id/reject', protect, (req, res, next) => {
+  req.body = { ...req.body, status: 'rejected' };
+  return updateApplicationStatus(req, res, next);
 });
 
 // ==========================================
-// 5. DELETE /api/applications/:id - Withdraw application
+// 5. DELETE & POST /api/applications/:id/withdraw - Withdraw application
 // ==========================================
-applicationRouter.delete('/:id', protect, async (req, res, next) => {
+const withdrawApplicationHandler = async (req, res, next) => {
   try {
     if (!req.params.id || req.params.id === 'undefined') {
       return res.status(400).json({ success: false, message: 'Application ID is required' });
@@ -503,6 +609,7 @@ applicationRouter.delete('/:id', protect, async (req, res, next) => {
 
     const wasAccepted = application.status === 'accepted';
     application.status = 'withdrawn';
+    application.withdrawnAt = new Date();
     await application.save();
 
     const projectId = application.project?._id || application.project;
@@ -577,6 +684,208 @@ applicationRouter.delete('/:id', protect, async (req, res, next) => {
       message: 'Application withdrawn successfully',
       application,
     });
+  } catch (err) {
+    next(err);
+  }
+};
+
+applicationRouter.delete('/:id', protect, withdrawApplicationHandler);
+applicationRouter.post('/:id/withdraw', protect, withdrawApplicationHandler);
+
+// ==========================================
+// 6. POST /api/applications - Submit proposal directly
+// ==========================================
+applicationRouter.post('/', protect, async (req, res, next) => {
+  try {
+    const {
+      project: targetProjectId,
+      projectId,
+      coverLetter,
+      proposedRate,
+      rateType = 'fixed',
+      estimatedDuration = '',
+      relevantRole = 'Developer',
+      relevantSkills = [],
+      portfolioLinks = [],
+      relevantExperience = '',
+      availability = 'immediate',
+      proposalAttachments = [],
+      resumeUrl = '',
+    } = req.body || {};
+
+    const pId = targetProjectId || projectId;
+    if (!pId) {
+      return res.status(400).json({ success: false, message: 'Project ID is required' });
+    }
+
+    const project = await Project.findById(pId);
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Project not found' });
+    }
+
+    if (project.applicationStatus === 'closed' || project.status !== 'open') {
+      return res.status(400).json({
+        success: false,
+        message: 'Applications for this project are currently closed',
+      });
+    }
+
+    if (String(project.owner) === String(req.user._id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Project owner cannot apply to their own project',
+      });
+    }
+
+    const deadline = project.applicationDeadline || project.deadline;
+    if (deadline && new Date() > new Date(deadline)) {
+      return res.status(400).json({
+        success: false,
+        message: 'The application deadline for this project has passed',
+      });
+    }
+
+    if (project.teamSize && project.acceptedApplicantsCount >= project.teamSize) {
+      return res.status(400).json({
+        success: false,
+        message: 'This project has already filled all available team positions',
+      });
+    }
+
+    if (coverLetter && typeof coverLetter === 'string' && coverLetter.length > 3000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cover letter cannot exceed 3000 characters',
+      });
+    }
+
+    let existingApp = await Application.findOne({
+      project: project._id,
+      applicant: req.user._id,
+    });
+
+    if (existingApp) {
+      if (existingApp.status === 'withdrawn') {
+        existingApp.status = 'pending';
+        existingApp.coverLetter = coverLetter || existingApp.coverLetter;
+        existingApp.proposedRate = proposedRate || existingApp.proposedRate;
+        existingApp.rateType = ['fixed', 'hourly', 'per_milestone'].includes(rateType) ? rateType : existingApp.rateType;
+        existingApp.estimatedDuration = estimatedDuration || existingApp.estimatedDuration;
+        existingApp.relevantSkills = Array.isArray(relevantSkills) && relevantSkills.length > 0 ? relevantSkills : existingApp.relevantSkills;
+        existingApp.portfolioLinks = Array.isArray(portfolioLinks) && portfolioLinks.length > 0 ? portfolioLinks : existingApp.portfolioLinks;
+        existingApp.relevantExperience = relevantExperience || existingApp.relevantExperience;
+        existingApp.availability = availability || existingApp.availability;
+        existingApp.withdrawnAt = null;
+        await existingApp.save();
+
+        await Project.findByIdAndUpdate(project._id, { $inc: { applicationsCount: 1 } });
+
+        await sendNotification({
+          recipient: project.owner,
+          sender: req.user._id,
+          type: 'application',
+          title: 'Application Resubmitted',
+          message: `${req.user.name} resubmitted their proposal to "${project.title}"`,
+          link: `/projects/${project._id}`,
+        });
+
+        emitToUser(project.owner, 'application:submitted', {
+          application: existingApp,
+          project: { _id: project._id, title: project.title },
+        });
+
+        return res.status(200).json({
+          success: true,
+          message: 'Application resubmitted successfully',
+          application: existingApp,
+        });
+      }
+
+      return res.status(400).json({
+        success: false,
+        message: 'You have already submitted an active application for this project',
+      });
+    }
+
+    const applicantUser = await User.findById(req.user._id);
+
+    const application = await Application.create({
+      project: project._id,
+      applicant: req.user._id,
+      coverLetter: coverLetter || 'I am interested in collaborating on this project.',
+      proposedRate: proposedRate || '',
+      rateType: ['fixed', 'hourly', 'per_milestone'].includes(rateType) ? rateType : 'fixed',
+      estimatedDuration: typeof estimatedDuration === 'string' ? estimatedDuration.trim() : '',
+      relevantRole: typeof relevantRole === 'string' ? relevantRole.trim() : 'Developer',
+      relevantSkills: Array.isArray(relevantSkills) ? relevantSkills.map(s => String(s).trim()).filter(Boolean) : [],
+      portfolioLinks: Array.isArray(portfolioLinks) ? portfolioLinks.map(l => String(l).trim()).filter(Boolean) : [],
+      relevantExperience: typeof relevantExperience === 'string' ? relevantExperience.trim().slice(0, 2000) : '',
+      availability: typeof availability === 'string' ? availability.trim() : 'immediate',
+      proposalAttachments: Array.isArray(proposalAttachments) ? proposalAttachments : [],
+      resumeUrl: resumeUrl || '',
+      status: 'pending',
+      applicantSnapshot: {
+        name: applicantUser?.name || req.user.name,
+        username: applicantUser?.username || req.user.username,
+        headline: applicantUser?.headline || '',
+        avatar: applicantUser?.avatar || '',
+        skills: applicantUser?.skills || [],
+      },
+    });
+
+    await Project.findByIdAndUpdate(project._id, { $inc: { applicationsCount: 1 } });
+
+    await sendNotification({
+      recipient: project.owner,
+      sender: req.user._id,
+      type: 'application',
+      title: 'New Application Received! 📩',
+      message: `${req.user.name} applied for "${project.title}"`,
+      link: `/projects/${project._id}`,
+    });
+
+    emitToUser(project.owner, 'application:submitted', {
+      application,
+      project: { _id: project._id, title: project.title },
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Application submitted successfully',
+      application,
+      data: application,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ==========================================
+// 7. PATCH /api/applications/:id - Edit pending proposal
+// ==========================================
+applicationRouter.patch('/:id', protect, async (req, res, next) => {
+  try {
+    const application = await Application.findById(req.params.id);
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'Application not found' });
+    }
+    if (String(application.applicant) !== String(req.user._id)) {
+      return res.status(403).json({ success: false, message: 'Not authorized to edit this application' });
+    }
+    if (!['pending', 'under_review'].includes(application.status)) {
+      return res.status(400).json({ success: false, message: `Cannot edit application with status "${application.status}"` });
+    }
+    const { coverLetter, proposedRate, rateType, estimatedDuration, relevantSkills, portfolioLinks, relevantExperience, availability } = req.body || {};
+    if (coverLetter !== undefined) application.coverLetter = coverLetter;
+    if (proposedRate !== undefined) application.proposedRate = proposedRate;
+    if (rateType !== undefined && ['fixed', 'hourly', 'per_milestone'].includes(rateType)) application.rateType = rateType;
+    if (estimatedDuration !== undefined) application.estimatedDuration = estimatedDuration;
+    if (relevantSkills !== undefined && Array.isArray(relevantSkills)) application.relevantSkills = relevantSkills;
+    if (portfolioLinks !== undefined && Array.isArray(portfolioLinks)) application.portfolioLinks = portfolioLinks;
+    if (relevantExperience !== undefined) application.relevantExperience = relevantExperience;
+    if (availability !== undefined) application.availability = availability;
+    await application.save();
+    return res.status(200).json({ success: true, message: 'Application updated successfully', application, data: application });
   } catch (err) {
     next(err);
   }

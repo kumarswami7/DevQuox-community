@@ -46,6 +46,24 @@ const commentSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    category: {
+      type: String,
+      enum: ['general', 'improvement', 'tech', 'feature', 'challenge', 'question', 'interest'],
+      default: 'general',
+    },
+    isHelpful: {
+      type: Boolean,
+      default: false,
+    },
+    isPinned: {
+      type: Boolean,
+      default: false,
+    },
+    status: {
+      type: String,
+      enum: ['open', 'resolved'],
+      default: 'open',
+    },
   },
   {
     timestamps: true,

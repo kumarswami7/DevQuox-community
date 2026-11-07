@@ -1,11 +1,14 @@
 import mongoose from 'mongoose';
 
 const VALID_STATUS_TRANSITIONS = {
-  draft: ['open', 'cancelled'],
-  open: ['in_progress', 'completed', 'cancelled'],
-  in_progress: ['completed', 'cancelled'],
-  completed: [],
-  cancelled: [],
+  draft: ['open', 'published', 'cancelled', 'archived'],
+  open: ['paused', 'in_progress', 'completed', 'cancelled', 'archived'],
+  published: ['paused', 'in_progress', 'completed', 'cancelled', 'archived'],
+  paused: ['open', 'published', 'cancelled', 'archived'],
+  in_progress: ['completed', 'cancelled', 'paused', 'archived'],
+  completed: ['archived'],
+  cancelled: ['archived'],
+  archived: ['draft'],
 };
 
 const projectSchema = new mongoose.Schema(
@@ -17,6 +20,18 @@ const projectSchema = new mongoose.Schema(
       minlength: [3, 'Title must be at least 3 characters'],
       maxlength: [120, 'Title cannot exceed 120 characters'],
     },
+    slug: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      index: true,
+    },
+    summary: {
+      type: String,
+      trim: true,
+      maxlength: [300, 'Summary cannot exceed 300 characters'],
+      default: '',
+    },
     description: {
       type: String,
       required: [true, 'Project description is required'],
@@ -24,6 +39,19 @@ const projectSchema = new mongoose.Schema(
       minlength: [10, 'Description must be at least 10 characters'],
       maxlength: [5000, 'Description cannot exceed 5000 characters'],
     },
+    coverImage: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    attachments: [
+      {
+        name: { type: String, trim: true },
+        url: { type: String, trim: true },
+        size: { type: Number, default: 0 },
+        type: { type: String, default: '' },
+      },
+    ],
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -69,7 +97,12 @@ const projectSchema = new mongoose.Schema(
     },
     budget: {
       type: String,
-      default: '$1,000 - $3,000',
+      default: 'Community Project',
+    },
+    budgetType: {
+      type: String,
+      enum: ['fixed', 'hourly', 'negotiable', 'milestone'],
+      default: 'fixed',
     },
     budgetMin: {
       type: Number,
@@ -86,6 +119,14 @@ const projectSchema = new mongoose.Schema(
       default: 'USD',
       uppercase: true,
     },
+    paymentStructure: {
+      type: String,
+      enum: ['milestone_based', 'upon_completion', 'hourly', 'custom'],
+      default: 'milestone_based',
+    },
+    startDate: {
+      type: Date,
+    },
     duration: {
       type: String,
       default: '1 - 2 Months',
@@ -97,6 +138,16 @@ const projectSchema = new mongoose.Schema(
         message: '{VALUE} is not a valid commitment type',
       },
       default: 'flexible',
+    },
+    workMode: {
+      type: String,
+      enum: ['remote', 'on_site', 'hybrid'],
+      default: 'remote',
+    },
+    collaborationPreferences: {
+      communicationTools: { type: [String], default: [] },
+      workingHours: { type: String, default: '' },
+      weeklyHours: { type: Number, default: 0 },
     },
     visibility: {
       type: String,
@@ -113,9 +164,16 @@ const projectSchema = new mongoose.Schema(
       set: (val) => {
         if (!val) return 'open';
         const normalized = val.toLowerCase().replace(/\s+/g, '_');
+        if (normalized === 'published') return 'open';
         return normalized;
       },
-      enum: ['draft', 'open', 'in_progress', 'completed', 'cancelled'],
+      enum: ['draft', 'open', 'published', 'paused', 'in_progress', 'completed', 'cancelled', 'archived'],
+      index: true,
+    },
+    applicationStatus: {
+      type: String,
+      enum: ['open', 'closed'],
+      default: 'open',
       index: true,
     },
     requiredSkills: {
@@ -126,10 +184,21 @@ const projectSchema = new mongoose.Schema(
         message: 'Cannot specify more than 25 required skills',
       },
     },
+    technologies: {
+      type: [String],
+      default: [],
+    },
+    requiredRoles: {
+      type: [String],
+      default: [],
+    },
     deadline: {
       type: Date,
     },
     applicationDeadline: {
+      type: Date,
+    },
+    publishedAt: {
       type: Date,
     },
     members: [
@@ -197,6 +266,28 @@ const projectSchema = new mongoose.Schema(
     toObject: { virtuals: true },
   }
 );
+
+// Virtual for alias applicationCount
+projectSchema.virtual('applicationCount').get(function () {
+  return this.applicationsCount || 0;
+});
+
+// Auto-generate slug and publishedAt timestamp
+projectSchema.pre('save', function (next) {
+  if (!this.slug && this.title) {
+    const base = this.title
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+    const suffix = this._id ? String(this._id).slice(-6) : Math.random().toString(36).substring(2, 8);
+    this.slug = `${base}-${suffix}`;
+  }
+  if (['open', 'published'].includes(this.status) && !this.publishedAt) {
+    this.publishedAt = new Date();
+  }
+  next();
+});
 
 // Compound indexes for optimal discovery feeds & filtering
 projectSchema.index({ status: 1, visibility: 1, createdAt: -1 });

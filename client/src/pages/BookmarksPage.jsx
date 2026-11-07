@@ -143,40 +143,40 @@ export const BookmarksPage = () => {
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/20 shadow-sm">
-              <Bookmark className="w-6 h-6 fill-amber-500" />
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="p-2 sm:p-2.5 rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/20 shadow-sm shrink-0">
+              <Bookmark className="w-5 h-5 sm:w-6 sm:h-6 fill-amber-500" />
             </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-                <span>Saved & Bookmarks</span>
-                <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                <span>Bookmarks</span>
+                <span className="text-[10px] sm:text-xs px-2 sm:px-2.5 py-0.5 rounded-full font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20 whitespace-nowrap">
                   {totalSaved} Saved
                 </span>
               </h1>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                Quickly access your starred project specifications, talent bookmarks, and saved community knowledge.
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1 sm:line-clamp-none">
+                Access your starred project specifications, talent bookmarks, and community knowledge.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
           <Button
             variant="outline"
             size="sm"
             onClick={handleRefresh}
             disabled={loading || refreshing}
-            className="gap-1.5"
+            className="gap-1.5 flex-1 sm:flex-none h-8 sm:h-9 text-xs rounded-xl"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
             <span>Refresh</span>
           </Button>
-          <Link to="/projects">
-            <Button variant="primary" size="sm" className="gap-2 shadow-glow-primary">
-              <Briefcase className="w-4 h-4" />
+          <Link to="/projects" className="flex-1 sm:flex-none">
+            <Button variant="primary" size="sm" className="w-full gap-2 shadow-sm h-8 sm:h-9 text-xs font-bold rounded-xl whitespace-nowrap">
+              <Briefcase className="w-3.5 h-3.5" />
               <span>Explore Projects</span>
             </Button>
           </Link>
@@ -184,8 +184,8 @@ export const BookmarksPage = () => {
       </div>
 
       {/* Filter Tabs & Search Toolbar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-3.5 rounded-2xl border border-slate-200/90 dark:border-slate-800/80 bg-white/70 dark:bg-cardDark/70 glass-card">
-        <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-4 p-3 sm:p-3.5 rounded-2xl border border-slate-200/90 dark:border-slate-800/80 bg-white/70 dark:bg-cardDark/70 glass-card">
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 no-scrollbar">
           {[
             { id: "all", label: `All Items (${totalSaved})`, icon: FolderHeart },
             { id: "projects", label: `Projects (${savedProjects.length})`, icon: Briefcase },

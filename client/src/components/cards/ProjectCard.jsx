@@ -20,6 +20,7 @@ import {
   Share2,
   Eye,
   CheckCircle2,
+  XCircle,
   MoreVertical,
   BarChart3,
   Edit3,
@@ -38,6 +39,7 @@ import { ProjectCommentSection } from "../feed/ProjectCommentSection";
 import { ProjectRepostModal } from "../feed/ProjectRepostModal";
 import { ProjectAnalyticsModal } from "../feed/ProjectAnalyticsModal";
 import { ReportDialog } from "../community/ReportDialog";
+import { ProjectDetailsEditModal } from "../workspace/ProjectDetailsEditModal";
 
 export const ProjectCard = ({ project, onProjectUpdated, onProjectDeleted }) => {
   const navigate = useNavigate();
@@ -79,12 +81,64 @@ export const ProjectCard = ({ project, onProjectUpdated, onProjectDeleted }) => 
   const [showRepostModal, setShowRepostModal] = useState(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [isUpdatingProject, setIsUpdatingProject] = useState(false);
+  const [localAppStatus, setLocalAppStatus] = useState(project.applicationStatus || "open");
+  const [localStatus, setLocalStatus] = useState(project.status || "open");
+
+  useEffect(() => {
+    if (project.applicationStatus !== undefined) setLocalAppStatus(project.applicationStatus);
+    if (project.status !== undefined) setLocalStatus(project.status);
+  }, [project.applicationStatus, project.status]);
+
+  const isAppOpen = localAppStatus === "open" && localStatus === "open";
+
+  const handleToggleApplicationStatus = async () => {
+    if (!projectId) return;
+    const nextStatus = isAppOpen ? "closed" : "open";
+    try {
+      setLocalAppStatus(nextStatus);
+      if (nextStatus === "open" && localStatus === "paused") {
+        setLocalStatus("open");
+      }
+      const res = await projectService.toggleProjectApplicationStatus(projectId, nextStatus);
+      if (onProjectUpdated && res.data?.project) {
+        onProjectUpdated(res.data.project);
+      }
+    } catch (err) {
+      setLocalAppStatus(isAppOpen ? "open" : "closed");
+      console.error("Failed to toggle project application status:", err);
+    }
+  };
+
+  const handleSaveProjectEdit = async (payload) => {
+    try {
+      setIsUpdatingProject(true);
+      const res = await projectService.updateProject(projectId, payload);
+      const updatedProj = res.data?.project || res.data?.data || res.data;
+      if (onProjectUpdated && updatedProj) {
+        onProjectUpdated(updatedProj);
+      }
+      setShowEditModal(false);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to update project');
+    } finally {
+      setIsUpdatingProject(false);
+    }
+  };
   const [menuOpen, setMenuOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
-  const [applied, setApplied] = useState(false);
-  const [proposedRate, setProposedRate] = useState("");
+  const [applied, setApplied] = useState(Boolean(project.hasApplied || project.applied));
+  const [applyError, setApplyError] = useState("");
+  const [selectedRole, setSelectedRole] = useState("Full Stack Developer");
+  const [selectedSkills, setSelectedSkills] = useState(
+    Array.isArray(project.requiredSkills) ? [...project.requiredSkills] : []
+  );
   const [coverNote, setCoverNote] = useState("");
+  const [availability, setAvailability] = useState("10 - 20 hrs / week");
+  const [githubUrl, setGithubUrl] = useState("");
+  const [portfolioUrl, setPortfolioUrl] = useState("");
   const [copiedLink, setCopiedLink] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
 
@@ -128,6 +182,7 @@ export const ProjectCard = ({ project, onProjectUpdated, onProjectDeleted }) => 
     if (project.repostsCount !== undefined) setRepostsCount(Number(project.repostsCount) || 0);
     if (project.hasReposted !== undefined) setHasReposted(!!project.hasReposted);
     if (project.isBookmarked !== undefined) setIsBookmarked(!!project.isBookmarked);
+    if (project.hasApplied !== undefined) setApplied(Boolean(project.hasApplied));
   }, [project]);
 
   // Bookmark toggle with optimistic update & rollback
@@ -223,21 +278,36 @@ export const ProjectCard = ({ project, onProjectUpdated, onProjectDeleted }) => 
     setShowShareModal(true);
   };
 
-  // Quick Apply submit
+  // Project Requirements Tailored Apply submit
   const handleQuickApply = async (e) => {
     e.preventDefault();
+    if (!isAppOpen) {
+      setApplyError("Applications for this project are currently closed.");
+      return;
+    }
     setIsApplying(true);
+    setApplyError("");
     try {
+      const portfolioLinks = [];
+      if (githubUrl.trim()) portfolioLinks.push(githubUrl.trim());
+      if (portfolioUrl.trim()) portfolioLinks.push(portfolioUrl.trim());
+
       await projectService.applyToProject(projectId, {
-        proposedRate: proposedRate || "Standard Rate",
-        coverLetter: coverNote || "Excited to build this project with your team!",
+        coverLetter: coverNote.trim() || `Excited to contribute to ${project.title} as a ${selectedRole}!`,
+        relevantRole: selectedRole,
+        relevantSkills: selectedSkills.length > 0 ? selectedSkills : (project.requiredSkills || []),
+        portfolioLinks,
+        availability,
+        relevantExperience: `Role: ${selectedRole} | Matched Skills: ${(selectedSkills.length > 0 ? selectedSkills : project.requiredSkills || []).join(', ')}`,
       });
       setApplied(true);
-      setTimeout(() => setIsModalOpen(false), 1200);
+      setTimeout(() => {
+        setIsModalOpen(false);
+        setApplied(false);
+      }, 1600);
     } catch (err) {
-      console.error(err);
-      setApplied(true);
-      setTimeout(() => setIsModalOpen(false), 1200);
+      console.error("Apply error:", err);
+      setApplyError(err.response?.data?.message || "Failed to submit application. Please check requirements.");
     } finally {
       setIsApplying(false);
     }
@@ -272,13 +342,13 @@ export const ProjectCard = ({ project, onProjectUpdated, onProjectDeleted }) => 
 
   return (
     <>
-      <Card className="glass-card hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between h-full group relative overflow-hidden border-slate-200/90 dark:border-slate-800/80 shadow-md hover:shadow-glow-subtle p-5">
+      <Card className="glass-card hover:-translate-y-0.5 transition-all duration-300 flex flex-col group relative overflow-hidden border-slate-200/90 dark:border-slate-800/80 shadow-md hover:shadow-glow-subtle p-3.5 sm:p-5">
         {/* Subtle accent corner glow */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-primary-500/10 transition-colors" />
 
         {/* Repost Attribution Banner */}
         {project.repostInfo && (
-          <div className="flex items-center gap-2 px-3 py-1.5 -mt-2 -mx-2 mb-3 bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-700 dark:text-emerald-400 font-medium rounded-xl">
+          <div className="flex items-center gap-2 px-3 py-1.5 -mt-1 -mx-1 sm:-mt-2 sm:-mx-2 mb-3 bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-700 dark:text-emerald-400 font-medium rounded-xl">
             <Repeat2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
             <span className="truncate">
               <strong>{project.repostInfo.repostedBy?.name || "A developer"}</strong> reposted
@@ -293,62 +363,74 @@ export const ProjectCard = ({ project, onProjectUpdated, onProjectDeleted }) => 
 
         <div className="space-y-3.5">
           {/* Header Row: Owner Avatar & Info, Status Pill, Bookmark, More Menu */}
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <Link to={ownerId ? `/profile/${ownerId}` : "#"} onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-start justify-between gap-2 sm:gap-3">
+            <div className="flex items-start gap-2.5 sm:gap-3 min-w-0 flex-1">
+              <Link to={ownerId ? `/profile/${ownerId}` : "#"} onClick={(e) => e.stopPropagation()} className="shrink-0 mt-0.5">
                 <Avatar src={ownerAvatar} name={ownerName} size="md" />
               </Link>
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <Link
-                    to={ownerId ? `/profile/${ownerId}` : "#"}
-                    onClick={(e) => e.stopPropagation()}
-                    className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white hover:text-primary-500 transition-colors truncate"
-                  >
-                    {ownerName}
-                  </Link>
-                  {/* Creator Role Badge: Client/Founder vs Developer */}
+              <div className="min-w-0 flex-1">
+                {/* Line 1: Owner Name */}
+                <Link
+                  to={ownerId ? `/profile/${ownerId}` : "#"}
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white hover:text-primary-500 transition-colors truncate block"
+                >
+                  {ownerName}
+                </Link>
+
+                {/* Line 2: Creator Role Badge */}
+                <div className="flex items-center gap-1.5 mt-0.5">
                   {ownerRole === "client" ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800">
-                      <Briefcase className="w-2.5 h-2.5" />
+                    <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold tracking-wide bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800 whitespace-nowrap">
+                      <Briefcase className="w-2.5 h-2.5 shrink-0" />
                       <span>Client / Founder</span>
                     </span>
                   ) : ownerRole === "developer" ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800">
+                    <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold tracking-wide bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800 whitespace-nowrap">
                       <span>💻 Developer</span>
                     </span>
                   ) : ownerRole ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 capitalize">
+                    <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold tracking-wide bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 capitalize whitespace-nowrap">
                       <span>{ownerRole}</span>
                     </span>
                   ) : null}
                 </div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                  {ownerHeadline} • <span className="font-medium">{postedDate}</span>
-                </p>
+
+                {/* Line 3: Headline and Date */}
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 min-w-0">
+                  {ownerHeadline && (
+                    <>
+                      <span className="truncate max-w-[120px] sm:max-w-[200px]">{ownerHeadline}</span>
+                      <span className="shrink-0">•</span>
+                    </>
+                  )}
+                  <span className="shrink-0 font-medium">{postedDate}</span>
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
               {project.originIdeaPost && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/60 dark:border-amber-800" title="Project launched from a Community Idea & Pitch">
-                  <Lightbulb className="w-2.5 h-2.5 text-amber-500" />
-                  <span>Idea</span>
+                <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/60 dark:border-amber-800 whitespace-nowrap shrink-0" title="Project launched from a Community Idea & Pitch">
+                  <Lightbulb className="w-2.5 h-2.5 text-amber-500 shrink-0" />
+                  <span className="hidden sm:inline">Idea</span>
                 </span>
               )}
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                {project.status === "in_progress"
-                  ? "In Progress"
-                  : project.status === "completed"
-                  ? "Completed"
-                  : "Hiring"}
+              <span
+                className={`inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold whitespace-nowrap shrink-0 ${
+                  isAppOpen
+                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                    : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isAppOpen ? "bg-emerald-500 animate-pulse" : "bg-rose-500"}`} />
+                <span>{isAppOpen ? "Applications Open" : "Applications Closed"}</span>
               </span>
 
               <button
                 type="button"
                 onClick={handleToggleBookmark}
-                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-amber-500 transition-colors"
+                className="p-1 sm:p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-amber-500 transition-colors"
                 title={isBookmarked ? "Remove Bookmark" : "Save Project"}
                 aria-label={isBookmarked ? "Remove from bookmarks" : "Bookmark project"}
               >
@@ -364,7 +446,7 @@ export const ProjectCard = ({ project, onProjectUpdated, onProjectDeleted }) => 
                 <button
                   type="button"
                   onClick={() => setMenuOpen(!menuOpen)}
-                  className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                  className="p-1 sm:p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
                   title="More actions"
                   aria-label="More project options"
                 >
@@ -390,12 +472,36 @@ export const ProjectCard = ({ project, onProjectUpdated, onProjectDeleted }) => 
                           type="button"
                           onClick={() => {
                             setMenuOpen(false);
-                            navigate(`/projects/${projectId}`);
+                            setShowEditModal(true);
                           }}
                           className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2"
                         >
                           <Edit3 className="w-3.5 h-3.5 text-amber-500" />
-                          <span>Manage / Edit</span>
+                          <span>Edit Project</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMenuOpen(false);
+                            handleToggleApplicationStatus();
+                          }}
+                          className={`w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2 ${
+                            isAppOpen
+                              ? 'text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30'
+                              : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30'
+                          }`}
+                        >
+                          {isAppOpen ? (
+                            <>
+                              <XCircle className="w-3.5 h-3.5 text-amber-500" />
+                              <span>Close Applications</span>
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                              <span>Open Applications</span>
+                            </>
+                          )}
                         </button>
                         <button
                           type="button"
@@ -515,159 +621,188 @@ export const ProjectCard = ({ project, onProjectUpdated, onProjectDeleted }) => 
             </div>
           )}
 
-          {/* Metadata Quad-Grid: Budget, Duration, Seniority, Team Capacity */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 py-2.5 px-3 border border-slate-200/60 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl text-xs">
-            <div className="flex items-center gap-1.5">
-              <DollarSign className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-              <span className="font-bold text-emerald-600 dark:text-emerald-400 truncate">
-                {project.budget || "Negotiable / Flexible"}
+          {/* Metadata Grid: Category/Type, Duration, Seniority, Team Capacity */}
+          <div className="grid grid-cols-2 gap-2.5 py-2.5 px-3 border border-slate-200/60 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/30 rounded-xl text-xs">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Briefcase className="w-3.5 h-3.5 text-primary-500 shrink-0" />
+              <span className="font-bold text-slate-800 dark:text-slate-200 truncate" title={project.category || "Community Project"}>
+                {project.category || (project.projectType === "collaboration" ? "Community Project" : "Developer Squad")}
               </span>
             </div>
-            <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+            <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 min-w-0">
               <Clock className="w-3.5 h-3.5 text-primary-500 shrink-0" />
-              <span className="truncate">{project.duration || "1 - 2 Months"}</span>
+              <span className="truncate" title={project.duration || "1 - 2 Months"}>
+                {project.duration || "1 - 2 Months"}
+              </span>
             </div>
-            <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+            <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 min-w-0">
               <Award className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-              <span className="capitalize truncate">
+              <span className="capitalize truncate" title={project.experienceLevel === "all" ? "All Levels" : (project.experienceLevel || "All Levels")}>
                 {project.experienceLevel === "all" ? "All Levels" : (project.experienceLevel || "All Levels")}
               </span>
             </div>
-            <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+            <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 min-w-0">
               <Users className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-              <span className="truncate">
+              <span className="truncate" title={`${project.acceptedApplicantsCount || 0}/${project.teamSize || 1} seats filled`}>
                 {project.acceptedApplicantsCount || 0}/{project.teamSize || 1} seats filled
               </span>
             </div>
           </div>
         </div>
 
-        {/* Engagement Summary Counts Bar */}
-        <div className="pt-3 mt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 font-medium">
-          <div className="flex items-center gap-1">
-            {reactionsCount > 0 ? (
-              <span className="flex items-center gap-1 font-semibold text-slate-600 dark:text-slate-300">
-                <span className="flex -space-x-1 select-none">
-                  {topEmojis.map((emoji, idx) => (
-                    <span key={idx} className="text-xs">
-                      {emoji}
-                    </span>
-                  ))}
+        {/* Pinned Bottom Footer (Engagement Metrics + Actions Row) */}
+        <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800/80 space-y-2.5">
+          {/* Engagement Summary Counts Bar */}
+          <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium gap-2">
+            <div className="flex items-center gap-1 shrink-0 whitespace-nowrap">
+              {reactionsCount > 0 ? (
+                <span className="flex items-center gap-1 font-semibold text-slate-600 dark:text-slate-300">
+                  <span className="flex -space-x-1 select-none">
+                    {topEmojis.map((emoji, idx) => (
+                      <span key={idx} className="text-xs">
+                        {emoji}
+                      </span>
+                    ))}
+                  </span>
+                  <span>{reactionsCount}</span>
                 </span>
-                <span>{reactionsCount}</span>
+              ) : (
+                <span className="text-slate-400">Be first to react</span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5 sm:gap-2.5 text-[11px] text-slate-400 whitespace-nowrap shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowComments(!showComments)}
+                className="hover:text-primary-500 transition-colors shrink-0"
+              >
+                {commentsCount} {commentsCount === 1 ? "comment" : "comments"}
+              </button>
+              {repostsCount > 0 && (
+                <>
+                  <span className="text-slate-300 dark:text-slate-600">•</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowRepostModal(true)}
+                    className="hover:text-emerald-500 transition-colors font-semibold shrink-0"
+                  >
+                    {repostsCount} {repostsCount === 1 ? "repost" : "reposts"}
+                  </button>
+                </>
+              )}
+              <span className="text-slate-300 dark:text-slate-600">•</span>
+              <span className="flex items-center gap-1 shrink-0">
+                <Eye className="w-3 h-3" />
+                {viewsCount} views
               </span>
-            ) : (
-              <span>Be the first to react</span>
-            )}
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setShowComments(!showComments)}
-              className="hover:text-primary-500 transition-colors"
-            >
-              {commentsCount} comments
-            </button>
-            <span>•</span>
-            <button
-              type="button"
-              onClick={() => setShowRepostModal(true)}
-              className="hover:text-emerald-500 transition-colors"
-            >
-              {repostsCount} reposts
-            </button>
-            <span>•</span>
-            <span className="flex items-center gap-1">
-              <Eye className="w-3 h-3" />
-              {viewsCount} views
-            </span>
-          </div>
-        </div>
+          {/* Engagement Actions Row */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="pt-2.5 border-t border-slate-100/90 dark:border-slate-800/80 flex flex-col gap-2.5"
+          >
+            {/* Social Actions (Reaction Picker, Comment, Repost, Share) */}
+            <div className="flex items-center justify-between gap-1 w-full text-slate-500 dark:text-slate-400">
+              {/* Reaction Picker */}
+              <div className="flex-1">
+                <ProjectReactionPicker
+                  userReaction={userReaction}
+                  onSelectReaction={handleSelectReaction}
+                  onRemoveReaction={handleRemoveReaction}
+                  disabled={!isAuthenticated}
+                />
+              </div>
 
-        {/* Engagement Actions Row */}
-        <div className="pt-2 mt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-1 flex-wrap">
-          <div className="flex items-center gap-1">
-            {/* Reaction Picker */}
-            <ProjectReactionPicker
-              userReaction={userReaction}
-              onSelectReaction={handleSelectReaction}
-              onRemoveReaction={handleRemoveReaction}
-              disabled={!isAuthenticated}
-            />
+              {/* Comment Trigger */}
+              <button
+                type="button"
+                onClick={() => setShowComments(!showComments)}
+                className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                  showComments
+                    ? "text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/40 font-bold"
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
+                }`}
+                title="Comment"
+              >
+                <MessageSquare className="w-4 h-4 shrink-0" />
+                <span>Comment</span>
+                {commentsCount > 0 && <span className="text-xs font-bold ml-0.5">{commentsCount}</span>}
+              </button>
 
-            {/* Comment Trigger */}
-            <button
-              type="button"
-              onClick={() => setShowComments(!showComments)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                showComments
-                  ? "text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/40 font-bold"
-                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
-              }`}
-            >
-              <MessageSquare className="w-4 h-4" />
-              <span>Comment</span>
-            </button>
+              {/* Repost Trigger */}
+              <button
+                type="button"
+                onClick={() => setShowRepostModal(true)}
+                disabled={!isAuthenticated}
+                className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                  hasReposted
+                    ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 font-bold"
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
+                } ${!isAuthenticated ? "opacity-60 cursor-not-allowed" : ""}`}
+                title={hasReposted ? "Undo Repost" : "Repost Project to your network"}
+              >
+                <Repeat2 className="w-4 h-4 shrink-0" />
+                <span>{hasReposted ? "Reposted" : "Repost"}</span>
+                {repostsCount > 0 && <span className="text-xs font-bold ml-0.5">{repostsCount}</span>}
+              </button>
 
-            {/* Repost Trigger */}
-            <button
-              type="button"
-              onClick={() => setShowRepostModal(true)}
-              disabled={!isAuthenticated}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                hasReposted
-                  ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 font-bold"
-                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
-              } ${!isAuthenticated ? "opacity-60 cursor-not-allowed" : ""}`}
-            >
-              <Repeat2 className="w-4 h-4" />
-              <span>Repost</span>
-            </button>
+              {/* Share Trigger */}
+              <button
+                type="button"
+                onClick={handleShare}
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all"
+                title="Share Project"
+              >
+                <Share2 className="w-4 h-4 shrink-0" />
+                <span>Share</span>
+              </button>
+            </div>
 
-            {/* Share Trigger */}
-            <button
-              type="button"
-              onClick={handleShare}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all relative"
-              title="Share Project"
-            >
-              <Share2 className="w-4 h-4" />
-              <span>Share</span>
-            </button>
-          </div>
-
-          {/* Quick Apply / Details Action */}
-          <div className="flex items-center gap-2 ml-auto pt-1 sm:pt-0">
-            {canAccessProjectChat && (
-              <Link to={`/messages?projectId=${projectId}`}>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-xs h-8 gap-1.5 text-[#00a884] border-[#00a884]/40 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 font-bold"
-                  title="Open Project Team Chat (Owner & Accepted Members Only)"
-                >
-                  <MessageSquare className="w-3.5 h-3.5 text-[#00a884]" />
-                  <span>Team Chat</span>
+            {/* Quick Apply / Details Action */}
+            <div className="flex items-center gap-2 w-full pt-1">
+              {canAccessProjectChat && (
+                <Link to={`/messages?projectId=${projectId}`} className="flex-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs h-8.5 gap-1.5 text-[#00a884] border-[#00a884]/40 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 font-bold w-full rounded-xl"
+                    title="Open Project Team Chat (Owner & Accepted Members Only)"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5 text-[#00a884]" />
+                    <span>Team Chat</span>
+                  </Button>
+                </Link>
+              )}
+              <Link to={`/projects/${projectId}`} className="flex-1">
+                <Button size="sm" variant="outline" className="text-xs h-8.5 w-full rounded-xl font-bold">
+                  Details
                 </Button>
               </Link>
-            )}
-            <Link to={`/projects/${projectId}`}>
-              <Button size="sm" variant="outline" className="text-xs h-8">
-                Details
-              </Button>
-            </Link>
-            {!isClient && (
-              <Button
-                size="sm"
-                variant={applied ? "success" : "primary"}
-                onClick={() => setIsModalOpen(true)}
-                disabled={applied || project.status === "completed"}
-                className="shadow-sm text-xs h-8"
-              >
-                {applied ? "✓ Applied" : "Apply"}
-              </Button>
-            )}
+              {isOwner ? (
+                <Link to={`/projects/${projectId}/workspace`} className="flex-1">
+                  <Button size="sm" variant="primary" className="shadow-sm text-xs h-8.5 gap-1 font-bold w-full rounded-xl">
+                    Workspace
+                  </Button>
+                </Link>
+              ) : applied ? (
+                <span className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 shadow-2xs select-none flex-1 h-8.5">
+                  ✓ Applied
+                </span>
+              ) : (
+                <Button
+                  size="sm"
+                  variant={!isAppOpen ? "secondary" : "primary"}
+                  onClick={() => setIsModalOpen(true)}
+                  disabled={!isAppOpen}
+                  className="shadow-sm text-xs h-8.5 flex-1 rounded-xl font-bold"
+                >
+                  {!isAppOpen ? "Closed" : "Apply"}
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -696,69 +831,185 @@ export const ProjectCard = ({ project, onProjectUpdated, onProjectDeleted }) => 
         />
       )}
 
-      {/* Quick Apply Interactive Modal */}
+      {/* Project Requirements Tailored Apply Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-lg p-6 rounded-3custom bg-white dark:bg-cardDark border border-slate-200 dark:border-slate-800 shadow-2xl relative">
+          <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 rounded-2xl bg-white dark:bg-cardDark border border-slate-200 dark:border-slate-800 shadow-2xl relative">
             <button
               onClick={() => setIsModalOpen(false)}
-              className="absolute top-5 right-5 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-white"
+              className="absolute top-5 right-5 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
-            <div className="flex items-center gap-2 mb-1">
-              <div className="p-2 rounded-xl bg-primary-500/10 text-primary-500">
-                <Sparkles className="w-4 h-4" />
+
+            {/* Modal Header */}
+            <div className="flex items-start gap-3 mb-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="p-2.5 rounded-xl bg-primary-500/10 text-primary-600 dark:text-primary-400 shrink-0">
+                <Sparkles className="w-5 h-5" />
               </div>
-              <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">
-                Apply to Project
-              </h3>
+              <div className="min-w-0 pr-6">
+                <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white truncate">
+                  Apply to {project.title}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Led by <span className="font-semibold text-slate-700 dark:text-slate-300">{ownerName}</span> • {project.category || "Development"} • {project.experienceLevel || "All Levels"}
+                </p>
+              </div>
             </div>
-            <p className="text-xs text-slate-500 mb-4">
-              Submitting application for{" "}
-              <span className="font-bold text-slate-900 dark:text-white">{project.title}</span>
-            </p>
+
             {applied ? (
-              <div className="py-8 text-center space-y-2">
-                <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto">
-                  <Check className="w-6 h-6" />
+              <div className="py-8 text-center space-y-3">
+                <div className="w-14 h-14 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto">
+                  <Check className="w-7 h-7" />
                 </div>
-                <h4 className="font-bold text-base text-slate-900 dark:text-white">
-                  Application Sent!
+                <h4 className="font-black text-lg text-slate-900 dark:text-white">
+                  Application Submitted! 🎉
                 </h4>
-                <p className="text-xs text-slate-400">
-                  The client has received your proposal and portfolio notification.
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
+                  Your tailored proposal and skill profile have been sent to <strong>{ownerName}</strong>. You will be notified when they review your application.
                 </p>
               </div>
             ) : (
               <form onSubmit={handleQuickApply} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Your Proposed Rate / Compensation
+                {applyError && (
+                  <div className="p-3 text-xs rounded-xl bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60">
+                    {applyError}
+                  </div>
+                )}
+
+                {/* 1. Project Requirements & Skills Match */}
+                {Array.isArray(project.requiredSkills) && project.requiredSkills.length > 0 && (
+                  <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                        Project Tech Requirements
+                      </span>
+                      <span className="text-[11px] text-slate-400">
+                        Select skills you bring
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {project.requiredSkills.map((skill) => {
+                        const isSelected = selectedSkills.includes(skill);
+                        return (
+                          <button
+                            key={skill}
+                            type="button"
+                            onClick={() => {
+                              setSelectedSkills((prev) =>
+                                isSelected ? prev.filter((s) => s !== skill) : [...prev, skill]
+                              );
+                            }}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all border ${
+                              isSelected
+                                ? "bg-primary-600 text-white border-primary-600 shadow-2xs"
+                                : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-primary-400"
+                            }`}
+                          >
+                            <TechnologyIcon name={skill} size="xs" />
+                            <span>{skill}</span>
+                            {isSelected && <Check className="w-3 h-3 text-white ml-0.5" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. Target Role / Contribution Area */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                    Target Role / Contribution Focus
                   </label>
-                  <input
-                    type="text"
-                    required
-                    value={proposedRate}
-                    onChange={(e) => setProposedRate(e.target.value)}
-                    placeholder="e.g. $4,500 Fixed or $60/hr"
-                    className="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-primary-500"
-                  />
+                  <select
+                    value={selectedRole}
+                    onChange={(e) => setSelectedRole(e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-primary-500 cursor-pointer font-medium"
+                  >
+                    <option value="Full Stack Developer">Full Stack Developer</option>
+                    <option value="Frontend Developer">Frontend Developer</option>
+                    <option value="Backend Developer">Backend Developer</option>
+                    <option value="Mobile App Developer">Mobile App Developer</option>
+                    <option value="UI/UX Designer">UI/UX Designer</option>
+                    <option value="DevOps & Cloud Engineer">DevOps & Cloud Engineer</option>
+                    <option value="QA / Test Automation">QA / Test Automation</option>
+                    <option value="Technical Contributor">Technical Contributor</option>
+                  </select>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Brief Proposal / Pitch
-                  </label>
+
+                {/* 3. Pitch / Technical Approach */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                      Your Approach & Contribution Proposal <span className="text-rose-500">*</span>
+                    </label>
+                    <span className="text-[11px] text-slate-400">
+                      {coverNote.length}/2000
+                    </span>
+                  </div>
                   <textarea
-                    rows={3}
+                    rows={4}
                     required
                     value={coverNote}
                     onChange={(e) => setCoverNote(e.target.value)}
-                    placeholder="Describe relevant architectures you've built, tech stack familiarity, and estimated timeline..."
-                    className="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-primary-500"
+                    placeholder={`Describe your familiarity with ${project.requiredSkills?.slice(0, 3).join(', ') || 'the tech stack'}, relevant architectures you've built, and how you will help complete this project...`}
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-primary-500 leading-relaxed"
                   />
                 </div>
-                <div className="flex items-center justify-end gap-2 pt-2">
+
+                {/* 4. Availability Commitment */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                    Time Commitment & Availability
+                  </label>
+                  <select
+                    value={availability}
+                    onChange={(e) => setAvailability(e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-primary-500 cursor-pointer font-medium"
+                  >
+                    <option value="Immediate / Flexible">Immediate / Flexible</option>
+                    <option value="5 - 10 hrs / week">Part-Time (5 - 10 hrs / week)</option>
+                    <option value="10 - 20 hrs / week">Dedicated (10 - 20 hrs / week)</option>
+                    <option value="20 - 35 hrs / week">Major Commitment (20 - 35 hrs / week)</option>
+                    <option value="Full-Time (35 - 40 hrs / week)">Full-Time (35 - 40 hrs / week)</option>
+                  </select>
+                </div>
+
+                {/* 5. Links (Explicitly Optional) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
+                      <Github className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
+                      <span>GitHub Profile / Repo</span>
+                      <span className="text-[11px] font-normal text-slate-400 lowercase">(optional)</span>
+                    </label>
+                    <input
+                      type="url"
+                      value={githubUrl}
+                      onChange={(e) => setGithubUrl(e.target.value)}
+                      placeholder="https://github.com/username/project"
+                      className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-primary-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
+                      <ExternalLink className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
+                      <span>Live Portfolio / Demo</span>
+                      <span className="text-[11px] font-normal text-slate-400 lowercase">(optional)</span>
+                    </label>
+                    <input
+                      type="url"
+                      value={portfolioUrl}
+                      onChange={(e) => setPortfolioUrl(e.target.value)}
+                      placeholder="https://portfolio.dev"
+                      className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-primary-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
                   <Button
                     type="button"
                     variant="ghost"
@@ -772,7 +1023,7 @@ export const ProjectCard = ({ project, onProjectUpdated, onProjectDeleted }) => 
                     variant="primary"
                     size="sm"
                     isLoading={isApplying}
-                    className="gap-2"
+                    className="gap-2 shadow-glow-primary"
                   >
                     <Send className="w-3.5 h-3.5" />
                     <span>Submit Application</span>
@@ -803,6 +1054,17 @@ export const ProjectCard = ({ project, onProjectUpdated, onProjectDeleted }) => 
           onClose={() => setShowReportDialog(false)}
         />
       )}
+      {/* Project Details Edit Modal (Owner Authority) */}
+      {showEditModal && (
+        <ProjectDetailsEditModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          project={project}
+          onSave={handleSaveProjectEdit}
+          isProcessing={isUpdatingProject}
+        />
+      )}
+
       {/* Universal Share Modal */}
       <ShareModal
         isOpen={showShareModal}

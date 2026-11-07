@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Search, Filter, Loader2, Sparkles, FolderGit2, DollarSign, Calendar, Tag, ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import { discoveryService } from "../services/discoveryService";
+import { useAuthStore } from "../store";
 import { Link } from "react-router-dom";
 
 const CATEGORIES = [
@@ -17,8 +18,22 @@ const CATEGORIES = [
 ];
 
 export const ProjectDiscoveryPage = () => {
+  const currentUser = useAuthStore((state) => state.user);
+  const currentUserId = currentUser?._id || currentUser?.id;
+
   const [projects, setProjects] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
+
+  const filteredRecommendations = useMemo(() => {
+    return recommendations.filter((rec) => {
+      const project = rec.item || rec.project || rec;
+      if (!project) return false;
+      const ownerId = project.owner?._id || project.owner;
+      if (currentUserId && String(ownerId) === String(currentUserId)) return false;
+      if (project.hasApplied) return false;
+      return true;
+    });
+  }, [recommendations, currentUserId]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
@@ -102,7 +117,7 @@ export const ProjectDiscoveryPage = () => {
       </div>
 
       {/* ── RECOMMENDATIONS ───────────────────────────────────────────────── */}
-      {recommendations.length > 0 && (
+      {filteredRecommendations.length > 0 && (
         <Card className="p-5 border-primary-500/30 bg-gradient-to-r from-primary-500/5 via-accent-500/5 to-transparent relative overflow-hidden">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -119,8 +134,8 @@ export const ProjectDiscoveryPage = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {recommendations.slice(0, 3).map((rec, idx) => {
-              const project = rec.item || rec;
+            {filteredRecommendations.slice(0, 3).map((rec, idx) => {
+              const project = rec.item || rec.project || rec;
               if (!project) return null;
               return (
                 <div
@@ -136,7 +151,7 @@ export const ProjectDiscoveryPage = () => {
                         {project.title}
                       </Link>
                       <Badge variant="success" className="text-[10px] px-1.5 py-0 shrink-0">
-                        ${project.budget || "TBD"}
+                        {project.category || "Community Project"}
                       </Badge>
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">
@@ -273,11 +288,11 @@ export const ProjectDiscoveryPage = () => {
         </div>
       ) : projects.length > 0 ? (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 items-start">
             {projects.map((proj) => (
               <Card
                 key={proj._id}
-                className="p-5 glass-card flex flex-col justify-between h-full hover:shadow-md transition-all duration-300 border-slate-200/90 dark:border-slate-800/80"
+                className="p-5 glass-card flex flex-col hover:shadow-md transition-all duration-300 border-slate-200/90 dark:border-slate-800/80"
               >
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-2">

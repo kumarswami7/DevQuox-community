@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { ProjectCard } from "../components/cards/ProjectCard";
 import { ProjectFeedComposer } from "../components/feed/ProjectFeedComposer";
 import {
@@ -21,6 +21,7 @@ import {
   Users,
   Clock,
   ExternalLink,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -65,6 +66,19 @@ export const ProjectsFeedPage = () => {
   const [recommendations, setRecommendations] = useState([]);
   const [suggestedCollaborators, setSuggestedCollaborators] = useState([]);
   const [platformStats, setPlatformStats] = useState(null);
+  const [showRecommendations, setShowRecommendations] = useState(false);
+
+  const currentUserId = currentUser?._id || currentUser?.id;
+  const filteredRecommendations = useMemo(() => {
+    return recommendations.filter((rec) => {
+      const proj = rec.project || rec.item;
+      if (!proj) return false;
+      const ownerId = proj.owner?._id || proj.owner;
+      if (currentUserId && String(ownerId) === String(currentUserId)) return false;
+      if (proj.hasApplied) return false;
+      return true;
+    });
+  }, [recommendations, currentUserId]);
 
   // Search, Category, and Sorting State
   const [searchParams, setSearchParams] = useSearchParams();
@@ -205,27 +219,22 @@ export const ProjectsFeedPage = () => {
   const userSkills = currentUser?.skills || [];
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
       {/* ── TOP HEADER & ACTIONS ────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-              Projects Feed
-            </h1>
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-primary-500/10 text-primary-600 dark:text-primary-400 border border-primary-500/20">
-              {totalCount} Active Listings
-            </span>
-            <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Live Atlas
-            </span>
-          </div>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Verified software projects and developer collaboration opportunities powered live by MongoDB Atlas.
-          </p>
+      <div className="flex items-center justify-between gap-3 pb-1">
+        <div className="flex items-center gap-2 min-w-0">
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight truncate">
+            Projects Feed
+          </h1>
+          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-primary-500/10 text-primary-600 dark:text-primary-400 border border-primary-500/20 shrink-0">
+            {totalCount} Active
+          </span>
+          <span className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Live Atlas
+          </span>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+        <div className="flex items-center gap-2 shrink-0">
           <Button
             variant="outline"
             size="sm"
@@ -234,11 +243,11 @@ export const ProjectsFeedPage = () => {
               fetchProjects(1, false).finally(() => setRefreshing(false));
             }}
             disabled={refreshing}
-            className="gap-1.5 text-xs"
+            className="p-2 h-8 rounded-xl text-slate-500 hover:text-slate-900"
             title="Refresh feed from MongoDB"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-primary-500" : ""}`} />
-            <span>{refreshing ? "Syncing..." : "Sync Atlas"}</span>
+            <span className="hidden sm:inline text-xs">{refreshing ? "Syncing..." : "Sync"}</span>
           </Button>
 
           <Button
@@ -256,26 +265,30 @@ export const ProjectsFeedPage = () => {
               }
             }}
             disabled={seeding || refreshing}
-            className="gap-1.5 text-xs text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
+            className="hidden sm:flex gap-1.5 text-xs h-8 px-2.5 sm:px-3 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
             title="Populate MongoDB with verified real benchmark projects"
           >
             <Sparkles className={`w-3.5 h-3.5 ${seeding ? "animate-spin" : ""}`} />
-            <span>{seeding ? "Seeding..." : "Seed Real Data"}</span>
+            <span>{seeding ? "Seeding..." : "Seed Data"}</span>
           </Button>
 
           <Link to="/projects/create">
-            <Button variant="accent" size="sm" className="gap-2 shadow-glow-accent text-xs">
+            <Button
+              variant="primary"
+              size="sm"
+              className="gap-1.5 shadow-sm text-xs h-8 px-3 font-bold bg-primary-600 hover:bg-primary-700 text-white"
+            >
               <Plus className="w-4 h-4" />
-              <span>Post New Project</span>
+              <span>Post Project</span>
             </Button>
           </Link>
         </div>
       </div>
 
-      {/* ── 3-COLUMN PROFESSIONAL LAYOUT ───────────────────────────────────── */}
+      {/* ── 3-COLUMN PROFESSIONAL LAYOUT (Optimized for Mobile) ───────────── */}
       <div className="grid grid-cols-12 gap-5 items-start">
-        {/* ── LEFT SIDEBAR (Col 3 on lg) ───────────────────────────────────── */}
-        <aside className="col-span-12 lg:col-span-3 space-y-4">
+        {/* ── LEFT SIDEBAR (Desktop lg:col-span-3, hidden on mobile so feed data appears right at top) ── */}
+        <aside className="hidden lg:block lg:col-span-3 space-y-4">
           {/* User Profile Mini-Card */}
           {isAuthenticated && currentUser ? (
             <Card className="glass-card p-4 space-y-3 border-slate-200/90 dark:border-slate-800/80">
@@ -453,7 +466,7 @@ export const ProjectsFeedPage = () => {
         {/* ── CENTER FEED (Col 6 on lg, Col 9 on 2xl) ────────────────────── */}
         <main className="col-span-12 lg:col-span-6 2xl:col-span-9 space-y-4">
           {/* Feed Tabs Bar: For You, Following, Latest, Trending */}
-          <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-white/80 dark:bg-cardDark/80 border border-slate-200/90 dark:border-slate-800/80 shadow-sm overflow-x-auto scrollbar-none">
+          <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-white/80 dark:bg-cardDark/80 border border-slate-200/90 dark:border-slate-800/80 shadow-sm overflow-x-auto scrollbar-none no-scrollbar">
             {FEED_TABS.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -482,50 +495,74 @@ export const ProjectsFeedPage = () => {
             })}
           </div>
 
-          {/* Inline Project Composer */}
-          <ProjectFeedComposer onProjectCreated={handleProjectCreated} />
+          {/* Mobile Category Chips Bar (visible on < lg screens) */}
+          <div className="lg:hidden flex items-center gap-1.5 overflow-x-auto scrollbar-none no-scrollbar py-0.5 touch-pan-x -mx-1 px-1">
+            {CATEGORIES.map((cat) => {
+              const isSelected = selectedCategory === cat;
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => {
+                    setSelectedCategory(cat);
+                    setPage(1);
+                  }}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all border ${
+                    isSelected
+                      ? "bg-primary-600 text-white border-primary-600 shadow-xs font-bold"
+                      : "bg-white/90 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-slate-200/90 dark:border-slate-700/80 hover:bg-slate-100"
+                  }`}
+                >
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
 
-          {/* Search Bar & Sort Dropdown */}
-          <div className="p-3.5 rounded-2xl border border-slate-200/90 dark:border-slate-800/80 bg-white/70 dark:bg-cardDark/70 glass-card flex flex-col sm:flex-row items-center gap-3">
-            <div className="relative flex-1 w-full">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          {/* Inline Project Composer (hidden on mobile to eliminate double post buttons) */}
+          <div className="hidden sm:block">
+            <ProjectFeedComposer onProjectCreated={handleProjectCreated} />
+          </div>
+
+          {/* Compact Search Bar & Sort Dropdown */}
+          <div className="p-2 sm:p-3 rounded-2xl border border-slate-200/90 dark:border-slate-800/80 bg-white/80 dark:bg-cardDark/80 glass-card flex items-center gap-2">
+            <div className="relative flex-1 min-w-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search projects by title, requirement, or stack (e.g. Next.js, Redis, Fastify)..."
-                className="w-full pl-10 pr-9 py-2 text-xs rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-primary-500"
+                placeholder="Search projects..."
+                className="w-full pl-8 pr-7 py-1.5 sm:py-2 text-xs rounded-xl bg-slate-100/90 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-primary-500"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <select
-                value={selectedSort}
-                onChange={(e) => {
-                  setSelectedSort(e.target.value);
-                  setPage(1);
-                }}
-                className="px-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer w-full sm:w-auto font-medium"
-              >
-                <option value="relevance">Sort: Relevance / Match</option>
-                <option value="newest">Sort: Recently Posted</option>
-                <option value="trending">Sort: Highest Trending</option>
-                <option value="most_discussed">Sort: Most Discussed</option>
-                <option value="budget_desc">Sort: Highest Budget</option>
-              </select>
-            </div>
+            <select
+              value={selectedSort}
+              onChange={(e) => {
+                setSelectedSort(e.target.value);
+                setPage(1);
+              }}
+              className="shrink-0 px-2 sm:px-3 py-1.5 sm:py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer font-medium max-w-[115px] sm:max-w-none truncate"
+            >
+              <option value="relevance">Relevance</option>
+              <option value="newest">Recent</option>
+              <option value="trending">Trending</option>
+              <option value="most_discussed">Discussed</option>
+              <option value="budget_desc">Budget</option>
+            </select>
           </div>
 
-          {/* Active Domain Filter Badge (when selected on left sidebar) */}
+          {/* Active Domain Filter Badge (when selected on left sidebar or mobile chips) */}
           {selectedCategory !== "All Projects" && (
             <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-primary-50/70 dark:bg-primary-950/20 border border-primary-200/50 dark:border-primary-900/30 text-xs">
               <span className="text-slate-600 dark:text-slate-400 font-medium">
@@ -548,9 +585,9 @@ export const ProjectsFeedPage = () => {
             </div>
           )}
 
-          {/* Recommended Projects Strip (when on For You tab) */}
-          {activeTab === "for-you" && isAuthenticated && recommendations.length > 0 && (
-            <Card className="p-4 border-primary-500/30 bg-gradient-to-r from-primary-500/5 via-accent-500/5 to-transparent relative overflow-hidden">
+          {/* Recommended Projects Strip (hidden on mobile so project feed starts immediately) */}
+          {activeTab === "for-you" && isAuthenticated && filteredRecommendations.length > 0 && (
+            <Card className="hidden sm:block p-4 border-primary-500/30 bg-gradient-to-r from-primary-500/5 via-accent-500/5 to-transparent relative overflow-hidden">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <div className="p-1 rounded-lg bg-primary-500 text-white">
@@ -564,7 +601,7 @@ export const ProjectsFeedPage = () => {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {recommendations.slice(0, 2).map((rec, idx) => {
+                {filteredRecommendations.slice(0, 2).map((rec, idx) => {
                   const proj = rec.project || rec.item;
                   if (!proj) return null;
                   const matchPct = rec.matchPercentage || rec.score || 85;
@@ -592,7 +629,7 @@ export const ProjectsFeedPage = () => {
 
                       <div className="pt-2 mt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                         <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                          {proj.budget}
+                          {proj.category || (proj.projectType === "collaboration" ? "Community Project" : "Developer Squad")}
                         </span>
                         <Link
                           to={`/projects/${proj._id}`}
@@ -719,8 +756,8 @@ export const ProjectsFeedPage = () => {
           )}
         </main>
 
-        {/* ── RIGHT SIDEBAR (Col 3 on lg, hidden on 2xl to avoid duplicate with global RightSidebar) ── */}
-        <aside className="col-span-12 lg:col-span-3 2xl:hidden space-y-4">
+        {/* ── RIGHT SIDEBAR (Col 3 on lg, hidden on mobile & 2xl to avoid duplicate with global RightSidebar) ── */}
+        <aside className="hidden lg:block lg:col-span-3 2xl:hidden space-y-4">
           {/* Real Platform Statistics */}
           <Card className="glass-card p-4 border-slate-200/90 dark:border-slate-800/80 space-y-3">
             <div className="flex items-center gap-2">

@@ -29,15 +29,15 @@ export const DevquoxLogo = ({ size = 'md', showText = true, variant = 'standard'
           alt="Devquox Icon"
           className={`${current.img} object-contain transition-transform duration-200 group-hover:scale-105`}
         />
-        <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white animate-pulse" />
+        <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900 animate-pulse" />
       </div>
 
       {showText && (
         <div className="flex flex-col">
-          <span className={`font-black tracking-tight leading-none text-slate-900 ${current.text}`}>
+          <span className={`font-black tracking-tight leading-none text-slate-900 dark:text-white ${current.text}`}>
             Dev<span className="bg-gradient-to-r from-red-600 via-rose-600 to-red-500 bg-clip-text text-transparent">quox</span>
           </span>
-          <span className={`font-semibold text-slate-400 tracking-wider uppercase mt-0.5 ${current.sub}`}>
+          <span className={`hidden sm:block font-semibold text-slate-400 dark:text-slate-500 tracking-wider uppercase mt-0.5 ${current.sub}`}>
             Developer & Client Platform
           </span>
         </div>

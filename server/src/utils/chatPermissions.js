@@ -15,7 +15,7 @@ export const verifyProjectWorkspaceAccess = async (userId, projectId) => {
 
   const project = await Project.findById(projectId);
   if (!project) {
-    return { allowed: false, error: 'Project not found' };
+    return { allowed: false, notFound: true, error: 'Project not found' };
   }
 
   // Owner always has access

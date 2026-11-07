@@ -48,6 +48,30 @@ export const projectService = {
   updateApplicationStatus: async (applicationId, { status, decisionReason }) => {
     return API.patch(`/applications/${applicationId}/status`, { status, decisionReason });
   },
+  shortlistApplication: async (applicationId) => {
+    return API.post(`/applications/${applicationId}/shortlist`);
+  },
+  acceptApplication: async (applicationId) => {
+    return API.post(`/applications/${applicationId}/accept`);
+  },
+  rejectApplication: async (applicationId, decisionReason = '') => {
+    return API.post(`/applications/${applicationId}/reject`, { decisionReason });
+  },
+  publishProject: async (id) => {
+    return API.post(`/projects/${id}/publish`);
+  },
+  pauseProject: async (id) => {
+    return API.post(`/projects/${id}/pause`);
+  },
+  resumeProject: async (id) => {
+    return API.post(`/projects/${id}/resume`);
+  },
+  updateProjectApplicationStatus: async (projectId, applicationStatus) => {
+    return API.patch(`/projects/${projectId}/application-status`, { applicationStatus });
+  },
+  toggleProjectApplicationStatus: async (projectId, applicationStatus) => {
+    return API.patch(`/projects/${projectId}/application-status`, { applicationStatus });
+  },
   // Phase 4: Workspace & Membership
   getProjectWorkspace: async (projectId) => {
     return API.get(`/projects/${projectId}/workspace`);

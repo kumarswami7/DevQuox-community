@@ -55,6 +55,16 @@ const startServer = async () => {
       console.warn('⚠️ Initial seed check notice:', seedErr.message);
     }
 
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.error(`❌ Port ${PORT} is already in use by another process.`);
+        console.error(`👉 Run 'npx kill-port ${PORT}' or close the process using port ${PORT} to free it.`);
+      } else {
+        console.error('Server error:', err);
+      }
+      process.exit(1);
+    });
+
     server.listen(PORT, () => {
       console.log(`🚀 MERN Server & Socket.IO running on http://localhost:${PORT}`);
       console.log(`📡 Health endpoint: http://localhost:${PORT}/api/v1/health`);

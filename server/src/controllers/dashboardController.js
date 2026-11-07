@@ -13,6 +13,8 @@ import { Community } from '../models/Community.js';
 import { Notification } from '../models/Notification.js';
 import { Post } from '../models/Post.js';
 import { Conversation } from '../models/Conversation.js';
+import { Message } from '../models/Message.js';
+import { ProjectBookmark } from '../models/ProjectBookmark.js';
 
 /**
  * Calculates profile completeness score (0-100) and actionable tips
@@ -67,12 +69,14 @@ export const getDashboardSummary = async (req, res) => {
       totalProjectsCount,
       totalDevelopersCount,
       totalCommunitiesCount,
+      totalIdeasCount,
       communitiesList,
       allPlatformProjects,
     ] = await Promise.all([
       Project.countDocuments({ status: { $ne: 'cancelled' } }).catch(() => 0),
       User.countDocuments({ role: { $in: ['developer', 'freelancer', 'student'] }, status: 'active' }).catch(() => 0),
       Community.countDocuments({}).catch(() => 0),
+      Post.countDocuments({ $or: [{ postType: 'idea' }, { 'ideaDetails.title': { $exists: true } }] }).catch(() => 0),
       Community.find({}).limit(8).lean().catch(() => []),
       Project.find({ status: { $ne: 'cancelled' } })
         .populate('owner', 'name avatar role username')
@@ -83,18 +87,43 @@ export const getDashboardSummary = async (req, res) => {
         .catch(() => []),
     ]);
 
-    // 2. Fetch User Profile & User Created Projects
+    // 2. Fetch User Profile, Created Projects & User Specific Stats
     let userProfile = null;
     let myCreatedProjects = [];
+    let unreadMessagesCount = 0;
+    let userBookmarksCount = 0;
+
     if (user?._id) {
-      [userProfile, myCreatedProjects] = await Promise.all([
+      const [uProfile, myProjs, unreadMsgTotal, bookmarksTotal] = await Promise.all([
         Profile.findOne({ user: user._id }).lean().catch(() => null),
         Project.find({ owner: user._id })
           .populate('owner', 'name avatar role')
           .sort({ createdAt: -1 })
           .lean()
           .catch(() => []),
+        (async () => {
+          try {
+            const convs = await Conversation.find({ participants: user._id }).select('_id').lean();
+            const convIds = convs.map((c) => c._id);
+            if (!convIds.length) return 0;
+            return await Message.countDocuments({
+              conversation: { $in: convIds },
+              sender: { $ne: user._id },
+              'readBy.user': { $ne: user._id },
+              deletedForMe: { $ne: user._id },
+              isDeleted: false,
+            }).catch(() => 0);
+          } catch {
+            return 0;
+          }
+        })(),
+        ProjectBookmark.countDocuments({ user: user._id }).catch(() => 0),
       ]);
+
+      userProfile = uProfile;
+      myCreatedProjects = myProjs;
+      unreadMessagesCount = unreadMsgTotal || 0;
+      userBookmarksCount = bookmarksTotal || 0;
     }
 
     const completeness = calculateProfileCompleteness(user, userProfile);
@@ -104,7 +133,10 @@ export const getDashboardSummary = async (req, res) => {
       totalProjects: totalProjectsCount,
       totalDevelopers: totalDevelopersCount,
       totalCommunities: totalCommunitiesCount,
+      totalIdeas: totalIdeasCount,
       myProjectsCount: myCreatedProjects.length,
+      unreadMessagesCount,
+      bookmarksCount: userBookmarksCount,
     };
     let recentProjects = allPlatformProjects;
     let recentApplications = [];
@@ -191,7 +223,12 @@ export const getDashboardSummary = async (req, res) => {
         pendingReviewCount,
         hiredEngineers: hiredMembersCount,
         platformDevelopers: totalDevelopersCount,
+        totalCommunities: totalCommunitiesCount,
+        totalIdeas: totalIdeasCount,
+        myProjectsCount: totalClientProjects,
         budgetCommitted: totalBudgetCommitted,
+        unreadMessagesCount,
+        bookmarksCount: userBookmarksCount,
       };
 
       recentProjects = clientProjectsList;
@@ -275,7 +312,10 @@ export const getDashboardSummary = async (req, res) => {
         totalProjects: totalProjectsCount,
         totalDevelopers: totalDevelopersCount,
         totalCommunities: totalCommunitiesCount,
+        totalIdeas: totalIdeasCount,
         myProjectsCount: myCreatedProjects.length,
+        unreadMessagesCount,
+        bookmarksCount: userBookmarksCount,
       };
 
       recentApplications = myApplicationsList;
@@ -305,7 +345,10 @@ export const getDashboardSummary = async (req, res) => {
         totalProjects: totalProjectsCount,
         totalDevelopers: totalDevelopersCount,
         totalCommunities: totalCommunitiesCount,
+        totalIdeas: totalIdeasCount,
         myProjectsCount: myCreatedProjects.length,
+        unreadMessagesCount,
+        bookmarksCount: userBookmarksCount,
         platformStatus: 'healthy',
       };
 
@@ -330,6 +373,17 @@ export const getDashboardSummary = async (req, res) => {
         .catch(() => []),
     ]);
 
+    const sidebarCounts = {
+      projectsCount: totalProjectsCount,
+      ideasCount: totalIdeasCount,
+      communitiesCount: totalCommunitiesCount,
+      developersCount: totalDevelopersCount,
+      myProjectsCount: myCreatedProjects.length,
+      applicationsCount: stats.applicationsReceived || stats.totalApplications || (Array.isArray(recentApplications) ? recentApplications.length : 0),
+      unreadMessagesCount,
+      bookmarksCount: userBookmarksCount,
+    };
+
     return res.status(200).json({
       success: true,
       data: {
@@ -345,6 +399,7 @@ export const getDashboardSummary = async (req, res) => {
             }
           : null,
         stats,
+        sidebarCounts,
         completeness,
         recentProjects: allPlatformProjects,
         myProjects: myCreatedProjects,

@@ -225,12 +225,10 @@ export const CreateProjectPage = () => {
       errs.description = 'Description cannot exceed 5000 characters';
     }
 
-    // 3. GitHub Repository URL (MANDATORY)
+    // 3. GitHub Repository URL (Optional)
     const urlPattern = /^https?:\/\/.+/i;
     const trimmedGithub = (data.githubRepoUrl || '').trim();
-    if (!trimmedGithub) {
-      errs.githubRepoUrl = 'GitHub Repository URL is required';
-    } else if (!urlPattern.test(trimmedGithub)) {
+    if (trimmedGithub && !urlPattern.test(trimmedGithub)) {
       errs.githubRepoUrl = 'GitHub URL must start with http:// or https://';
     }
 
@@ -245,28 +243,6 @@ export const CreateProjectPage = () => {
     const teamNum = Number(data.teamSize);
     if (isNaN(teamNum) || teamNum < 1 || teamNum > 100) {
       errs.teamSize = 'Team size must be between 1 and 100 positions';
-    }
-
-    // 6. Budget Validation (Optional, active only if budget section opened or values provided)
-    if (showBudget) {
-      const hasMin = data.budgetMin !== '' && data.budgetMin !== undefined && data.budgetMin !== null;
-      const hasMax = data.budgetMax !== '' && data.budgetMax !== undefined && data.budgetMax !== null;
-      const bMin = hasMin ? Number(data.budgetMin) : null;
-      const bMax = hasMax ? Number(data.budgetMax) : null;
-
-      if (bMin !== null) {
-        if (isNaN(bMin) || bMin < 0) {
-          errs.budgetMin = 'Minimum budget cannot be negative';
-        }
-      }
-      if (bMax !== null) {
-        if (isNaN(bMax) || bMax < 0) {
-          errs.budgetMax = 'Maximum budget cannot be negative';
-        }
-      }
-      if (bMin !== null && bMax !== null && !isNaN(bMin) && !isNaN(bMax) && bMin > bMax) {
-        errs.budgetRange = 'Minimum budget cannot exceed maximum budget';
-      }
     }
 
     // 7. Deadlines (Optional)
@@ -311,32 +287,6 @@ export const CreateProjectPage = () => {
     }
 
     try {
-      const cur = formData.currency || 'USD';
-      const curSymbol = CURRENCIES.find((c) => c.code === cur)?.symbol || '$';
-
-      let formattedBudget;
-      let bMin = 0;
-      let bMax = 0;
-
-      if (showBudget) {
-        const hasMin = formData.budgetMin !== '' && formData.budgetMin !== undefined && formData.budgetMin !== null;
-        const hasMax = formData.budgetMax !== '' && formData.budgetMax !== undefined && formData.budgetMax !== null;
-        bMin = hasMin ? Number(formData.budgetMin) : 0;
-        bMax = hasMax ? Number(formData.budgetMax) : 0;
-
-        if (hasMin && hasMax) {
-          formattedBudget = `${curSymbol}${bMin.toLocaleString()} - ${curSymbol}${bMax.toLocaleString()}`;
-        } else if (hasMin) {
-          formattedBudget = `From ${curSymbol}${bMin.toLocaleString()}`;
-        } else if (hasMax) {
-          formattedBudget = `Up to ${curSymbol}${bMax.toLocaleString()}`;
-        } else {
-          formattedBudget = 'Negotiable / Flexible';
-        }
-      } else {
-        formattedBudget = 'Negotiable / Flexible';
-      }
-
       const payload = {
         title: formData.title.trim(),
         description: formData.description.trim(),
@@ -344,10 +294,10 @@ export const CreateProjectPage = () => {
         projectType: formData.projectType || 'collaboration',
         experienceLevel: 'all', // Standardized to 'all' (Removed from UI)
         teamSize: Number(formData.teamSize) || 1,
-        budget: formattedBudget,
-        budgetMin: bMin,
-        budgetMax: bMax,
-        currency: cur,
+        budget: 'Community Project',
+        budgetMin: 0,
+        budgetMax: 0,
+        currency: 'USD',
         duration: formData.duration || '1 - 2 Months',
         commitment: formData.commitment || 'flexible',
         visibility: formData.visibility || 'public',
@@ -357,7 +307,7 @@ export const CreateProjectPage = () => {
         applicationDeadline: formData.applicationDeadline
           ? new Date(formData.applicationDeadline).toISOString()
           : undefined,
-        githubRepoUrl: formData.githubRepoUrl.trim(),
+        githubRepoUrl: (formData.githubRepoUrl || '').trim(),
         liveDemoUrl: formData.liveDemoUrl && formData.liveDemoUrl.trim() ? formData.liveDemoUrl.trim() : undefined,
         ideaPostId: ideaData?.postId || undefined,
       };
@@ -384,37 +334,37 @@ export const CreateProjectPage = () => {
   const isAnySubmitting = isSubmittingDraft || isPublishing;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-16">
+    <div className="max-w-4xl mx-auto space-y-5 sm:space-y-8 pb-16">
       {/* Top Breadcrumb & Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4 sm:pb-5">
+        <div className="flex items-center gap-2.5 sm:gap-3">
           <button
             type="button"
             onClick={() => navigate('/projects')}
-            className="p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             title="Back to Projects"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div className="p-2.5 rounded-2xl bg-gradient-to-tr from-primary-600 to-indigo-500 text-white shadow-md shadow-primary-500/20">
-            <Rocket className="w-6 h-6" />
+          <div className="p-2 sm:p-2.5 rounded-2xl bg-gradient-to-tr from-primary-600 to-indigo-500 text-white shadow-md shadow-primary-500/20 shrink-0">
+            <Rocket className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight truncate">
                 Create New Project
               </h1>
-              <Badge variant="primary" className="text-[10px] uppercase font-bold tracking-wider">
+              <Badge variant="primary" className="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider whitespace-nowrap">
                 Spec Creator
               </Badge>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1 sm:line-clamp-none">
               Draft comprehensive requirements, assemble technical teams, and collaborate with top developers.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
           <Button
             type="button"
             variant="outline"
@@ -422,7 +372,7 @@ export const CreateProjectPage = () => {
             onClick={handleDraftClick}
             disabled={isAnySubmitting}
             isLoading={isSubmittingDraft}
-            className="text-xs font-semibold gap-1.5"
+            className="text-xs font-semibold gap-1.5 flex-1 sm:flex-none h-8 sm:h-9 rounded-xl"
           >
             <FileEdit className="w-3.5 h-3.5" /> Save Draft
           </Button>
@@ -433,7 +383,7 @@ export const CreateProjectPage = () => {
             onClick={handlePublishClick}
             disabled={isAnySubmitting}
             isLoading={isPublishing}
-            className="text-xs font-semibold gap-1.5"
+            className="text-xs font-semibold gap-1.5 flex-1 sm:flex-none h-8 sm:h-9 rounded-xl shadow-sm"
           >
             <Sparkles className="w-3.5 h-3.5" /> Publish Project
           </Button>
@@ -476,7 +426,7 @@ export const CreateProjectPage = () => {
       {/* Form Content */}
       <form onSubmit={handlePublishClick} className="space-y-8" noValidate>
         {/* Section 1: Core Details */}
-        <Card className="p-6 sm:p-8 space-y-6 border border-slate-200 dark:border-slate-800">
+        <Card className="p-4 sm:p-8 space-y-4 sm:space-y-6 border border-slate-200 dark:border-slate-800 rounded-2xl">
           <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800/80">
             <Layers className="w-4 h-4 text-primary-500" />
             <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">
@@ -577,7 +527,7 @@ export const CreateProjectPage = () => {
         </Card>
 
         {/* Section 2: Team Architecture & Expected Commitment */}
-        <Card className="p-6 sm:p-8 space-y-6 border border-slate-200 dark:border-slate-800">
+        <Card className="p-4 sm:p-8 space-y-4 sm:space-y-6 border border-slate-200 dark:border-slate-800 rounded-2xl">
           <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800/80">
             <Users className="w-4 h-4 text-primary-500" />
             <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">
@@ -646,7 +596,7 @@ export const CreateProjectPage = () => {
         </Card>
 
         {/* Section 3: Budget, Compensation & Timeline */}
-        <Card className="p-6 sm:p-8 space-y-6 border border-slate-200 dark:border-slate-800">
+        <Card className="p-4 sm:p-8 space-y-4 sm:space-y-6 border border-slate-200 dark:border-slate-800 rounded-2xl">
           <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800/80">
             <DollarSign className="w-4 h-4 text-emerald-500" />
             <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">
@@ -654,122 +604,8 @@ export const CreateProjectPage = () => {
             </h2>
           </div>
 
-          {/* Interactive Budget Toggle Section */}
-          {!showBudget ? (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30 transition-all">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                  <DollarSign className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                    Project Budget & Compensation <span className="text-[11px] font-normal text-slate-400 lowercase">(optional)</span>
-                  </h4>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Currently set to <span className="font-semibold text-emerald-600 dark:text-emerald-400">Negotiable / Flexible</span>. Click button to specify exact budget numbers.
-                  </p>
-                </div>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowBudget(true)}
-                className="text-xs font-semibold gap-1.5 self-start sm:self-auto border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
-              >
-                <Plus className="w-3.5 h-3.5" /> Specify Budget
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-4 p-4 rounded-xl border border-emerald-500/30 bg-emerald-50/20 dark:bg-emerald-950/10 transition-all">
-              <div className="flex items-center justify-between pb-2 border-b border-emerald-500/20">
-                <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300">
-                  <DollarSign className="w-4 h-4" />
-                  <span className="text-xs font-bold uppercase tracking-wider">Defined Budget Tier</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowBudget(false);
-                    setValue('budgetMin', '');
-                    setValue('budgetMax', '');
-                  }}
-                  className="text-[11px] font-semibold text-rose-500 hover:text-rose-600 flex items-center gap-1 transition-colors"
-                >
-                  <X className="w-3.5 h-3.5" /> Remove Budget (Make Negotiable)
-                </button>
-              </div>
-
-              {/* Budget Range & Currency (Optional) */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                    Currency <span className="text-[11px] font-normal text-slate-400 lowercase">(optional)</span>
-                  </label>
-                  <select
-                    {...register('currency')}
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:border-primary-500 transition-all font-mono"
-                  >
-                    {CURRENCIES.map((cur) => (
-                      <option key={cur.code} value={cur.code}>
-                        {cur.code} ({cur.symbol})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                    Min Budget ({CURRENCIES.find((c) => c.code === currentCurrency)?.symbol || '$'}) <span className="text-[11px] font-normal text-slate-400 lowercase">(optional)</span>
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    placeholder="500"
-                    {...register('budgetMin')}
-                    className={`w-full px-3.5 py-2.5 text-xs rounded-xl border bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all ${
-                      fieldErrors.budgetMin || fieldErrors.budgetRange
-                        ? 'border-rose-500'
-                        : 'border-slate-200 dark:border-slate-800 focus:border-primary-500'
-                    }`}
-                  />
-                  {fieldErrors.budgetMin && (
-                    <p className="text-[11px] font-medium text-rose-500 mt-1">{fieldErrors.budgetMin}</p>
-                  )}
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                    Max Budget ({CURRENCIES.find((c) => c.code === currentCurrency)?.symbol || '$'}) <span className="text-[11px] font-normal text-slate-400 lowercase">(optional)</span>
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    placeholder="2500"
-                    {...register('budgetMax')}
-                    className={`w-full px-3.5 py-2.5 text-xs rounded-xl border bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all ${
-                      fieldErrors.budgetMax || fieldErrors.budgetRange
-                        ? 'border-rose-500'
-                        : 'border-slate-200 dark:border-slate-800 focus:border-primary-500'
-                    }`}
-                  />
-                  {fieldErrors.budgetMax && (
-                    <p className="text-[11px] font-medium text-rose-500 mt-1">{fieldErrors.budgetMax}</p>
-                  )}
-                </div>
-              </div>
-
-              {fieldErrors.budgetRange && (
-                <p className="text-[11px] font-medium text-rose-500 flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  {fieldErrors.budgetRange}
-                </p>
-              )}
-            </div>
-          )}
-
           {/* Duration & Deadlines */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-100 dark:border-slate-800/60">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
                 Estimated Duration
@@ -825,7 +661,7 @@ export const CreateProjectPage = () => {
         </Card>
 
         {/* Section 4: Required Skills & Tech Stack */}
-        <Card className="p-6 sm:p-8 space-y-6 border border-slate-200 dark:border-slate-800">
+        <Card className="p-4 sm:p-8 space-y-4 sm:space-y-6 border border-slate-200 dark:border-slate-800 rounded-2xl">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/80">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-primary-500" />
@@ -917,7 +753,7 @@ export const CreateProjectPage = () => {
         </Card>
 
         {/* Section 5: External Repositories, Demos & Visibility */}
-        <Card className="p-6 sm:p-8 space-y-6 border border-slate-200 dark:border-slate-800">
+        <Card className="p-4 sm:p-8 space-y-4 sm:space-y-6 border border-slate-200 dark:border-slate-800 rounded-2xl">
           <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800/80">
             <Globe className="w-4 h-4 text-primary-500" />
             <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">
@@ -926,14 +762,13 @@ export const CreateProjectPage = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* GitHub Repository URL (MANDATORY) */}
+            {/* GitHub Repository URL (OPTIONAL) */}
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide flex items-center gap-1.5">
-                <Github className="w-3.5 h-3.5" /> GitHub Repository URL <span className="text-rose-500">*</span>
+                <Github className="w-3.5 h-3.5 text-slate-700 dark:text-slate-300" /> GitHub Repository URL <span className="text-[11px] font-normal text-slate-400 lowercase">(optional)</span>
               </label>
               <input
                 type="url"
-                required
                 placeholder="https://github.com/organization/project-name"
                 {...register('githubRepoUrl')}
                 className={`w-full px-3.5 py-2.5 text-xs rounded-xl border bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all ${

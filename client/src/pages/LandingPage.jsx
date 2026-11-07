@@ -52,6 +52,7 @@ import {
   Handshake,
   CheckSquare,
   Send,
+  Menu,
 } from "lucide-react";
 import { DevquoxLogo } from "../components/ui/DevquoxLogo";
 import { Button } from "../components/ui/Button";
@@ -269,6 +270,7 @@ export const LandingPage = () => {
 
   // Experience Switcher
   const [selectedExperience, setSelectedExperience] = useState("developer"); // 'developer' | 'founder'
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Ideas State
   const [ideas, setIdeas] = useState([]);
@@ -402,46 +404,73 @@ export const LandingPage = () => {
       <div className="absolute top-0 left-0 right-0 w-full h-[450px] bg-[radial-gradient(ellipse_at_top,rgba(220,38,38,0.06),transparent_70%)] pointer-events-none" />
 
       {/* =========================================================================
-          1. STICKY TOPBAR WITH DEVQUOX BRANDING (100% FULL WIDTH)
+          1. STICKY TOPBAR WITH DEVQUOX BRANDING (PREMIUM SAAS GLASSMORPHISM)
       ========================================================================= */}
-      <nav className="fixed top-0 left-0 right-0 z-50 w-full border-b border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-[#0c1319]/95 backdrop-blur-xl shadow-2xs transition-colors">
-        <div className="h-[2px] w-full bg-gradient-to-r from-primary-600 via-rose-500 to-red-500" />
-        <div className="w-full flex items-center justify-between px-6 sm:px-10 lg:px-14 xl:px-20 2xl:px-24 py-3.5">
-          <Link to="/" className="flex items-center gap-2.5 group">
+      <nav className="fixed top-0 left-0 right-0 z-50 w-full border-b border-slate-200/80 dark:border-slate-800/80 bg-white/85 dark:bg-[#0c1319]/85 backdrop-blur-md shadow-2xs transition-colors">
+        {/* Subtle accent glow line at the very top */}
+        <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-primary-500/80 to-transparent pointer-events-none" />
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+          {/* Brand Logo */}
+          <Link to="/" className="flex items-center gap-2.5 shrink-0 focus:outline-none">
             <DevquoxLogo size="md" />
           </Link>
 
-          <div className="hidden lg:flex items-center gap-7 text-xs font-bold text-slate-600 dark:text-slate-300">
-            <a href="#about-section" className="hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
-              About Devquox
+          {/* Center Navigation Links - Desktop (Single-line, no awkward wrapping) */}
+          <div className="hidden lg:flex items-center gap-1 xl:gap-2">
+            <a
+              href="#about-section"
+              className="px-3 py-1.5 rounded-full text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-all whitespace-nowrap"
+            >
+              About
             </a>
-            <a href="#experience-section" className="hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
-              Two-Sided Platform
+            <a
+              href="#experience-section"
+              className="px-3 py-1.5 rounded-full text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-all whitespace-nowrap"
+            >
+              Ecosystem
             </a>
-            <a href="#ideas-section" className="hover:text-primary-600 dark:hover:text-primary-400 transition-colors flex items-center gap-1.5">
-              <span>Discover Ideas</span>
-              <span className="text-[10px] font-black px-1.5 py-0.2 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/60">
+            <a
+              href="#ideas-section"
+              className="px-3 py-1.5 rounded-full text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-all whitespace-nowrap inline-flex items-center gap-1.5"
+            >
+              <span>Ideas</span>
+              <span className="text-[9px] font-black tracking-wider px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                 PITCH
               </span>
             </a>
-            <a href="#projects-section" className="hover:text-primary-600 dark:hover:text-primary-400 transition-colors flex items-center gap-1.5">
-              <span>Find Projects</span>
-              <span className="text-[10px] font-black px-1.5 py-0.2 rounded-full bg-primary-50 text-primary-600 dark:bg-primary-950/40 dark:text-primary-300 border border-primary-200/60">
+            <a
+              href="#projects-section"
+              className="px-3 py-1.5 rounded-full text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-all whitespace-nowrap inline-flex items-center gap-1.5"
+            >
+              <span>Projects</span>
+              <span className="text-[9px] font-black tracking-wider px-1.5 py-0.5 rounded-full bg-primary-500/10 text-primary-600 dark:text-primary-400 border border-primary-500/20 inline-flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse" />
                 LIVE
               </span>
             </a>
-            <a href="#how-it-works" className="hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+            <a
+              href="#how-it-works"
+              className="px-3 py-1.5 rounded-full text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-all whitespace-nowrap"
+            >
               How It Works
             </a>
-            <a href="#features-section" className="hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
-              Platform Features
+            <a
+              href="#features-section"
+              className="px-3 py-1.5 rounded-full text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-all whitespace-nowrap"
+            >
+              Features
             </a>
           </div>
 
-          <div className="flex items-center gap-3">
+          {/* Right Action CTAs */}
+          <div className="flex items-center gap-2 sm:gap-3">
             {isAuthenticated ? (
               <Link to={PRE_LAUNCH_CONFIG.isPreLaunchActive() ? "/pre-launch" : "/dashboard"}>
-                <Button variant="primary" size="sm" className="gap-2 font-bold px-4 cursor-pointer">
+                <Button
+                  size="sm"
+                  className="h-9 px-4 rounded-xl text-xs font-bold bg-primary-600 hover:bg-primary-700 text-white shadow-xs hover:shadow-primary-600/25 transition-all flex items-center gap-1.5 cursor-pointer"
+                >
                   <span>{PRE_LAUNCH_CONFIG.isPreLaunchActive() ? "Pre-Launch Access" : "Go to Dashboard"}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
@@ -449,20 +478,94 @@ export const LandingPage = () => {
             ) : (
               <>
                 <Link to="/login">
-                  <Button variant="ghost" size="sm" className="font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 px-3.5 rounded-xl font-bold text-xs text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-all cursor-pointer"
+                  >
                     Log In
                   </Button>
                 </Link>
                 <Link to="/register">
-                  <Button variant="primary" size="sm" className="gap-2 font-bold px-4 cursor-pointer shadow-md shadow-primary-500/20">
+                  <Button
+                    size="sm"
+                    className="h-9 px-4 rounded-xl text-xs font-bold bg-gradient-to-r from-primary-600 to-rose-600 hover:from-primary-700 hover:to-rose-700 text-white shadow-xs hover:shadow-md hover:shadow-primary-600/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
                     <span>Join Free</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </Button>
                 </Link>
               </>
             )}
+
+            {/* Mobile Menu Toggle Button */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              aria-label="Toggle Navigation Menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
         </div>
+
+        {/* Mobile Dropdown Menu */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden border-t border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-[#0c1319]/95 backdrop-blur-xl px-4 py-4 space-y-2 animate-in fade-in duration-150">
+            <div className="flex flex-col space-y-1">
+              <a
+                href="#about-section"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                About Devquox
+              </a>
+              <a
+                href="#experience-section"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                Two-Sided Platform
+              </a>
+              <a
+                href="#ideas-section"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-between"
+              >
+                <span>Discover Ideas</span>
+                <span className="text-[9px] font-black tracking-wider px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                  PITCH
+                </span>
+              </a>
+              <a
+                href="#projects-section"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-between"
+              >
+                <span>Find Projects</span>
+                <span className="text-[9px] font-black tracking-wider px-2 py-0.5 rounded-full bg-primary-500/10 text-primary-600 dark:text-primary-400 border border-primary-500/20 inline-flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse" />
+                  LIVE
+                </span>
+              </a>
+              <a
+                href="#how-it-works"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                How It Works
+              </a>
+              <a
+                href="#features-section"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                Platform Features
+              </a>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* =========================================================================

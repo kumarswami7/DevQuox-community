@@ -57,6 +57,8 @@ export const MyApplicationsPage = () => {
 
   const totalCount = applications.length;
   const pendingCount = applications.filter((a) => normalizeStatus(a.status) === "pending").length;
+  const underReviewCount = applications.filter((a) => normalizeStatus(a.status) === "under_review").length;
+  const shortlistedCount = applications.filter((a) => normalizeStatus(a.status) === "shortlisted").length;
   const acceptedCount = applications.filter((a) => normalizeStatus(a.status) === "accepted").length;
   const rejectedCount = applications.filter((a) => normalizeStatus(a.status) === "rejected").length;
   const withdrawnCount = applications.filter((a) => normalizeStatus(a.status) === "withdrawn").length;
@@ -121,6 +123,18 @@ export const MyApplicationsPage = () => {
             <CheckCircle className="w-3 h-3" /> Accepted
           </Badge>
         );
+      case "shortlisted":
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+            ★ Shortlisted
+          </span>
+        );
+      case "under_review":
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+            <Clock className="w-3 h-3" /> Under Review
+          </span>
+        );
       case "rejected":
         return (
           <Badge variant="danger" className="gap-1 font-bold">
@@ -137,37 +151,37 @@ export const MyApplicationsPage = () => {
       default:
         return (
           <Badge variant="warning" className="gap-1 font-bold">
-            <Clock className="w-3 h-3" /> Under Review
+            <Clock className="w-3 h-3" /> Pending Review
           </Badge>
         );
     }
   };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-12">
+    <div className="space-y-4 sm:space-y-6 max-w-6xl mx-auto pb-12">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
             Proposal Pipeline
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1 sm:line-clamp-none">
             Track status updates, reviews, client feedback, and team onboarding in real time.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
           <Button
             variant="outline"
             size="sm"
             onClick={fetchApplications}
             disabled={loading}
-            className="gap-1.5"
+            className="gap-1.5 flex-1 sm:flex-none h-8 sm:h-9 text-xs rounded-xl"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
             <span>Refresh</span>
           </Button>
-          <Link to="/projects">
-            <Button variant="accent" size="sm" className="gap-2 shadow-glow-accent">
+          <Link to="/projects" className="flex-1 sm:flex-none">
+            <Button variant="accent" size="sm" className="w-full gap-2 shadow-sm h-8 sm:h-9 text-xs font-bold rounded-xl whitespace-nowrap">
               <Briefcase className="w-4 h-4" />
               <span>Explore Projects</span>
             </Button>
@@ -195,7 +209,7 @@ export const MyApplicationsPage = () => {
       )}
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         <Card
           onClick={() => setFilterStatus("all")}
           className={`glass-card p-4 space-y-1 cursor-pointer transition-all ${
@@ -211,8 +225,17 @@ export const MyApplicationsPage = () => {
             filterStatus === "pending" ? "border-amber-500 ring-2 ring-amber-500/20" : ""
           }`}
         >
-          <p className="text-[10px] font-bold uppercase tracking-wider text-amber-500">Under Review</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-amber-500">Pending</p>
           <h3 className="text-2xl font-black text-amber-500">{pendingCount}</h3>
+        </Card>
+        <Card
+          onClick={() => setFilterStatus("shortlisted")}
+          className={`glass-card p-4 space-y-1 cursor-pointer transition-all ${
+            filterStatus === "shortlisted" ? "border-indigo-500 ring-2 ring-indigo-500/20" : ""
+          }`}
+        >
+          <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-500">Shortlisted</p>
+          <h3 className="text-2xl font-black text-indigo-500">{shortlistedCount}</h3>
         </Card>
         <Card
           onClick={() => setFilterStatus("accepted")}
@@ -247,7 +270,8 @@ export const MyApplicationsPage = () => {
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
         {[
           { label: "All Proposals", value: "all", count: totalCount },
-          { label: "Under Review", value: "pending", count: pendingCount },
+          { label: "Pending", value: "pending", count: pendingCount },
+          { label: "Shortlisted", value: "shortlisted", count: shortlistedCount },
           { label: "Accepted", value: "accepted", count: acceptedCount },
           { label: "Rejected", value: "rejected", count: rejectedCount },
           { label: "Withdrawn", value: "withdrawn", count: withdrawnCount },

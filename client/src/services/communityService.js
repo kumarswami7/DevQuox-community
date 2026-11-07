@@ -71,6 +71,9 @@ export const communityService = {
   togglePostReaction: async (postId, reactionType = "like") => {
     return apiClient.post(`/community/posts/${postId}/reactions`, { reactionType });
   },
+  toggleVote: async (postId) => {
+    return apiClient.post(`/community/posts/${postId}/reactions`, { reactionType: "like" });
+  },
   toggleCommentReaction: async (commentId, reactionType = "like") => {
     return apiClient.post(`/community/comments/${commentId}/reactions`, { reactionType });
   },

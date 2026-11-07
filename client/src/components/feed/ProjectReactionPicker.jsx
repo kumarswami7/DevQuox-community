@@ -163,7 +163,7 @@ export const ProjectReactionPicker = ({
           setShowPicker(!showPicker);
         }}
         disabled={disabled}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all select-none ${
+        className={`flex items-center justify-center gap-1 px-2 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all select-none w-full sm:w-auto ${
           activeConfig
             ? `${activeConfig.color} ${activeConfig.bg} font-bold`
             : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
@@ -173,12 +173,12 @@ export const ProjectReactionPicker = ({
         {activeConfig ? (
           <>
             <span className="text-sm leading-none">{activeConfig.emoji}</span>
-            <span>{activeConfig.label}</span>
+            <span className="hidden sm:inline">{activeConfig.label}</span>
           </>
         ) : (
           <>
             <ThumbsUp className="w-4 h-4 transition-transform group-hover:scale-110" />
-            <span>React</span>
+            <span className="hidden sm:inline">React</span>
           </>
         )}
       </button>

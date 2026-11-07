@@ -3,12 +3,12 @@ import { Avatar } from '../ui/Avatar';
 import { MessageList } from './MessageList';
 import { MessageComposer } from './MessageComposer';
 import { TypingIndicator } from './TypingIndicator';
+import { CallModal } from './CallModal';
 import { chatService } from '../../services/chatService';
 import {
   getSocket,
   joinConversationRoom,
   leaveConversationRoom,
-  sendSocketMessage,
   emitTyping,
   emitMessageRead,
 } from '../../services/socket';
@@ -24,6 +24,10 @@ import {
   MoreVertical,
   X,
   Lock,
+  Palette,
+  Shield,
+  Star,
+  Sparkles,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -44,11 +48,14 @@ export const ChatWindow = ({
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
 
-  // WhatsApp features: In-chat search, Reply quote, Header menu
+  // WhatsApp-level Features
   const [showInChatSearch, setShowInChatSearch] = useState(false);
   const [inChatSearchQuery, setInChatSearchQuery] = useState('');
   const [replyingTo, setReplyingTo] = useState(null);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const [wallpaper, setWallpaper] = useState('devquox'); // 'devquox' | 'matrix' | 'clean' | 'crimson'
+  const [callModalOpen, setCallModalOpen] = useState(false);
+  const [callType, setCallType] = useState('voice'); // 'voice' | 'video'
 
   const conversationId = conversation?._id || conversation?.id;
   const isProject = conversation?.type === 'project' || Boolean(conversation?.project);
@@ -59,8 +66,8 @@ export const ChatWindow = ({
     'Chat';
 
   const subtitle = isProject
-    ? `Project Workspace Room • ${conversation?.project?.category || 'Devquox'}`
-    : 'online';
+    ? `Squad Workspace Room • ${conversation?.project?.category || 'Devquox'}`
+    : 'Active now';
 
   // 1. Fetch message history & join Socket.IO room
   useEffect(() => {
@@ -84,8 +91,24 @@ export const ChatWindow = ({
         }
       } catch (err) {
         if (isMounted) {
-          console.error('[ChatWindow] Message fetch error:', err);
-          setError('Failed to load message history. Please check connection.');
+          console.warn('[ChatWindow] Message fetch status notice:', err.response?.status);
+          if (err.response?.status === 403) {
+            setError({
+              type: 'forbidden',
+              message: '🔒 Private Project Workspace: You must be an accepted team member or project owner to view this team chat.',
+              projectId: conversation?.project?._id || conversation?.project,
+            });
+          } else if (err.response?.status === 404) {
+            setError({
+              type: 'not_found',
+              message: 'This conversation or project is no longer available.',
+            });
+          } else {
+            setError({
+              type: 'network',
+              message: 'Unable to load message history. Please check connection.',
+            });
+          }
         }
       } finally {
         if (isMounted) setIsLoading(false);
@@ -98,10 +121,9 @@ export const ChatWindow = ({
     chatService.markConversationRead(conversationId).catch(() => {});
     emitMessageRead(conversationId);
 
-    // Join Socket room
+    // Join Socket Room
     joinConversationRoom(conversationId);
 
-    // Socket listeners setup
     const socket = getSocket();
     if (socket) {
       setIsConnected(socket.connected);
@@ -109,92 +131,83 @@ export const ChatWindow = ({
       const handleConnect = () => setIsConnected(true);
       const handleDisconnect = () => setIsConnected(false);
 
+      // Handle incoming messages cleanly (No Duplicates!)
       const handleNewMessage = (newMsg) => {
-        if (!newMsg) return;
-        const msgConvId = String(newMsg.conversation?._id || newMsg.conversation || '');
+        if (!isMounted) return;
+        const msgConvId = String(newMsg.conversation?._id || newMsg.conversation);
         if (msgConvId === String(conversationId)) {
           setMessages((prev) => {
-            const newId = String(newMsg._id || newMsg.id || '');
-            if (newId && prev.some((m) => String(m._id || m.id) === newId)) {
-              return prev.map((m) => (String(m._id || m.id) === newId ? newMsg : m));
-            }
-
-            const senderId = String(newMsg.sender?._id || newMsg.sender || '');
-            const tempIdx = prev.findIndex(
-              (m) =>
-                String(m._id || m.id).startsWith('temp-') &&
-                String(m.sender?._id || m.sender || '') === senderId &&
-                (m.content === newMsg.content || m.text === newMsg.content)
+            // Check if exact ID already in list
+            const exactExists = prev.some(
+              (m) => String(m._id || m.id) === String(newMsg._id || newMsg.id)
             );
-            if (tempIdx !== -1) {
-              const next = [...prev];
-              next[tempIdx] = newMsg;
-              return next;
+            if (exactExists) return prev;
+
+            // If incoming message was sent by me, check if there's a pending temp- message to replace
+            const senderId = String(newMsg.sender?._id || newMsg.sender?.id || newMsg.sender || '');
+            if (senderId === String(currentUserId)) {
+              const pendingIdx = prev.findIndex(
+                (m) =>
+                  String(m._id).startsWith('temp-') &&
+                  (m.content === newMsg.content || (m.content || '').trim() === (newMsg.content || '').trim())
+              );
+              if (pendingIdx !== -1) {
+                const next = [...prev];
+                next[pendingIdx] = { ...newMsg, isMe: true };
+                return next;
+              }
             }
 
-            return [...prev, newMsg];
+            return [...prev, { ...newMsg, isMe: senderId === String(currentUserId) }];
           });
-          emitMessageRead(conversationId);
+          onConversationUpdated?.(newMsg);
         }
       };
 
-      const handleMessageUpdated = (updated) => {
-        if (!updated) return;
+      const handleMessageUpdated = (updatedMsg) => {
+        if (!isMounted) return;
         setMessages((prev) =>
           prev.map((m) =>
-            String(m._id || m.id) === String(updated.messageId)
-              ? {
-                  ...m,
-                  content: updated.content,
-                  text: updated.content,
-                  isEdited: true,
-                  editedAt: updated.editedAt,
-                }
-              : m
+            String(m._id || m.id) === String(updatedMsg._id || updatedMsg.id) ? updatedMsg : m
           )
         );
       };
 
-      const handleMessageDeleted = (deleted) => {
-        if (!deleted) return;
+      const handleMessageDeleted = (data) => {
+        if (!isMounted) return;
         setMessages((prev) =>
-          prev.map((m) =>
-            String(m._id || m.id) === String(deleted.messageId)
-              ? {
-                  ...m,
-                  isDeleted: true,
-                  content: '🚫 This message was deleted',
-                  text: '🚫 This message was deleted',
-                }
-              : m
-          )
+          prev.map((m) => {
+            if (String(m._id || m.id) === String(data.messageId)) {
+              return {
+                ...m,
+                isDeleted: true,
+                content: '🚫 This message was deleted',
+                text: '🚫 This message was deleted',
+              };
+            }
+            return m;
+          })
         );
       };
 
       const handleTypingStatus = (data) => {
-        if (!data || String(data.conversationId) !== String(conversationId)) return;
-        if (String(data.userId) === currentUserId) return;
-
-        setTypingUsers((prev) => {
+        if (!isMounted) return;
+        if (String(data.conversationId) === String(conversationId)) {
+          if (String(data.userId) === String(currentUserId)) return;
           if (data.isTyping) {
-            if (!prev.some((u) => String(u.userId) === String(data.userId))) {
-              return [...prev, { userId: data.userId, userName: data.userName }];
-            }
-            return prev;
+            setTypingUsers((prev) => (prev.includes(data.userName) ? prev : [...prev, data.userName]));
           } else {
-            return prev.filter((u) => String(u.userId) !== String(data.userId));
+            setTypingUsers((prev) => prev.filter((name) => name !== data.userName));
           }
-        });
+        }
       };
 
       const handleConversationRead = (data) => {
-        if (!data || String(data.conversationId) !== String(conversationId)) return;
+        if (!isMounted) return;
         setMessages((prev) =>
           prev.map((m) => {
-            if (String(m.sender?._id || m.sender) === currentUserId) {
-              const alreadyRead = m.readBy?.some(
-                (rb) => String(rb.user?._id || rb.user) === String(data.userId)
-              );
+            if (String(m.sender?._id || m.sender) === String(currentUserId)) {
+              const alreadyRead = Array.isArray(m.readBy) && m.readBy.some((r) => String(r.user) === String(data.userId));
               if (!alreadyRead) {
                 return {
                   ...m,
@@ -259,88 +272,60 @@ export const ChatWindow = ({
     }
   };
 
-  // 3. Send message
-  const handleSendMessage = async (textToSend, attachments = []) => {
-    let finalContent = (textToSend || '').trim();
-    if (replyingTo) {
-      const quotePrefix = `> *${replyingTo.sender?.name || 'Member'}*: ${
-        replyingTo.content || replyingTo.text || 'Attachment'
-      }\n\n`;
-      finalContent = `${quotePrefix}${finalContent}`;
-    }
-
-    const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
-    if ((!finalContent && !hasAttachments) || isSending) return;
+  // 3. Send message - Single REST request (Prevents duplicate messages!)
+  const handleSendMessage = async (payload) => {
+    if (!payload.content && (!payload.attachments || !payload.attachments.length)) return;
 
     const tempId = `temp-${Date.now()}`;
-    const optimisticMsg = {
+    const optimisticMessage = {
       _id: tempId,
-      id: tempId,
       conversation: conversationId,
-      sender: {
-        _id: currentUserId,
-        name: currentUser?.name || 'You',
-        avatar: currentUser?.avatar || currentUser?.avatarUrl,
-        role: currentUser?.role,
-      },
-      content: finalContent,
-      text: finalContent,
-      attachments: attachments || [],
+      sender: currentUser,
+      content: payload.content || '',
+      messageType: payload.messageType || 'text',
+      voiceMetadata: payload.voiceMetadata || undefined,
+      attachments: payload.attachments || [],
+      replyTo: replyingTo || undefined,
+      reactions: [],
       createdAt: new Date().toISOString(),
       isMe: true,
-      readBy: [{ user: currentUserId, readAt: new Date() }],
+      pending: true,
     };
 
-    setMessages((prev) => [...prev, optimisticMsg]);
+    setMessages((prev) => [...prev, optimisticMessage]);
     setIsSending(true);
-    setReplyingTo(null);
 
     try {
+      // Send single REST call (server automatically emits 'message:new' to socket room)
       const res = await chatService.sendMessageToConversation(conversationId, {
-        content: finalContent,
-        attachments,
+        content: payload.content || '',
+        messageType: payload.messageType || 'text',
+        voiceMetadata: payload.voiceMetadata,
+        attachments: payload.attachments || [],
+        replyTo: replyingTo?._id || replyingTo?.id,
       });
 
-      const savedMessage = res.data?.message || res.data;
+      const savedMessage = res.data?.message || res.data?.data || res.data;
       if (savedMessage) {
         setMessages((prev) => {
-          const savedId = String(savedMessage._id || savedMessage.id || '');
-          const alreadyExists = savedId && prev.some((m) => String(m._id || m.id) === savedId);
-          if (alreadyExists) {
-            return prev.filter((m) => m._id !== tempId && m.id !== tempId);
+          // Check if socket already added it
+          const alreadyInList = prev.some(
+            (m) => String(m._id || m.id) === String(savedMessage._id || savedMessage.id)
+          );
+          if (alreadyInList) {
+            return prev.filter((m) => m._id !== tempId);
           }
-          return prev.map((m) => (m._id === tempId || m.id === tempId ? savedMessage : m));
+          return prev.map((m) => (m._id === tempId ? { ...savedMessage, isMe: true } : m));
         });
         onConversationUpdated?.(savedMessage);
       }
     } catch (err) {
-      console.error('[ChatWindow] REST send error, trying socket fallback:', err);
-      const sentViaSocket = sendSocketMessage(
-        {
-          conversationId,
-          content: finalContent,
-          attachments,
-        },
-        (response) => {
-          if (response?.success && response?.data) {
-            const savedData = response.data;
-            const savedId = String(savedData._id || savedData.id || '');
-            setMessages((prev) => {
-              const alreadyExists = savedId && prev.some((m) => String(m._id || m.id) === savedId);
-              if (alreadyExists) {
-                return prev.filter((m) => m._id !== tempId && m.id !== tempId);
-              }
-              return prev.map((m) => (m._id === tempId || m.id === tempId ? savedData : m));
-            });
-          }
-        }
-      );
-
-      if (!sentViaSocket) {
-        setError('Failed to deliver message. Please retry.');
-      }
+      console.error('[ChatWindow] Error sending message:', err);
+      setMessages((prev) => prev.filter((m) => m._id !== tempId));
+      alert('Failed to deliver message: ' + (err.response?.data?.message || err.message));
     } finally {
       setIsSending(false);
+      setReplyingTo(null);
     }
   };
 
@@ -388,6 +373,40 @@ export const ChatWindow = ({
     }
   };
 
+  // 6. Toggle Emoji Reaction on message
+  const handleReactMessage = (messageId, emoji) => {
+    setMessages((prev) =>
+      prev.map((m) => {
+        if (String(m._id || m.id) === String(messageId)) {
+          const currentReactions = Array.isArray(m.reactions) ? [...m.reactions] : [];
+          const existingIdx = currentReactions.findIndex(
+            (r) => String(r.user?._id || r.user) === String(currentUserId) && r.emoji === emoji
+          );
+
+          if (existingIdx >= 0) {
+            currentReactions.splice(existingIdx, 1);
+          } else {
+            currentReactions.push({ user: currentUser, emoji, createdAt: new Date() });
+          }
+          return { ...m, reactions: currentReactions };
+        }
+        return m;
+      })
+    );
+  };
+
+  // 7. Toggle Star message
+  const handleStarMessage = (messageId) => {
+    setMessages((prev) =>
+      prev.map((m) => {
+        if (String(m._id || m.id) === String(messageId)) {
+          return { ...m, isStarred: !m.isStarred };
+        }
+        return m;
+      })
+    );
+  };
+
   const handleTypingChange = (isTyping) => {
     emitTyping(conversationId, isTyping);
   };
@@ -404,20 +423,20 @@ export const ChatWindow = ({
   if (!conversation) {
     return (
       <div
-        className={`flex-1 flex flex-col items-center justify-center p-8 bg-[#f0f2f5] dark:bg-[#111b21] text-slate-400 select-none border-b-4 border-[#00a884] ${className}`}
+        className={`flex-1 flex flex-col items-center justify-center p-8 bg-slate-50/60 dark:bg-slate-900/60 backdrop-blur-md text-slate-400 select-none ${className}`}
       >
-        <div className="w-20 h-20 rounded-full bg-white dark:bg-[#202c33] shadow-md flex items-center justify-center text-3xl mb-4 text-[#00a884]">
-          💬
+        <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary-500/20 to-primary-600/20 border border-primary-500/30 shadow-xl flex items-center justify-center text-3xl mb-4 text-primary-500">
+          <Sparkles className="w-10 h-10" />
         </div>
-        <h3 className="text-xl font-bold text-[#111b21] dark:text-[#e9edef]">
-          DevConnect WhatsApp Web
+        <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+          Devquox Collaboration Hub
         </h3>
         <p className="text-xs text-slate-500 max-w-sm text-center mt-1.5 leading-relaxed">
-          Send and receive real-time messages, share documents, and collaborate in team rooms seamlessly.
+          Select a conversation from the left to start encrypted real-time messaging, voice notes, and project squad calls.
         </p>
-        <div className="flex items-center gap-1.5 mt-8 text-[11px] text-slate-400">
-          <Lock className="w-3.5 h-3.5" />
-          <span>End-to-end encrypted with Devquox Socket protocols</span>
+        <div className="flex items-center gap-1.5 mt-8 text-[11px] text-slate-400 font-medium">
+          <Lock className="w-3.5 h-3.5 text-primary-500" />
+          <span>Secured with end-to-end Socket encryption</span>
         </div>
       </div>
     );
@@ -425,14 +444,14 @@ export const ChatWindow = ({
 
   return (
     <div
-      className={`flex-1 flex flex-col overflow-hidden bg-[#efeae2] dark:bg-[#0b141a] transition-colors ${className}`}
+      className={`flex-1 flex flex-col h-full min-h-0 overflow-hidden bg-slate-50 dark:bg-[#0c1319] transition-colors relative ${className}`}
     >
-      {/* 1. WhatsApp Web Top Header Bar */}
-      <div className="h-16 px-4 bg-[#f0f2f5] dark:bg-[#202c33] border-b border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between shrink-0 select-none z-10 shadow-xs">
+      {/* 1. Devquox Top Header Bar */}
+      <div className="h-16 px-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between shrink-0 select-none z-10 shadow-2xs">
         {/* Contact / Team Profile Info */}
         <div className="flex items-center gap-3 min-w-0">
           {isProject ? (
-            <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-800 flex items-center justify-center text-[#00a884] dark:text-[#25d366] shrink-0 shadow-xs">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-950/60 dark:to-slate-800 border border-primary-200/80 dark:border-primary-800 flex items-center justify-center text-primary-600 dark:text-primary-400 shrink-0 shadow-xs">
               <Briefcase className="w-5 h-5" />
             </div>
           ) : (
@@ -441,100 +460,136 @@ export const ChatWindow = ({
               name={conversation?.user?.name || 'Contact'}
               size="md"
               status="online"
+              className="rounded-full ring-1 ring-slate-200 dark:ring-slate-700"
             />
           )}
 
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-[#111b21] dark:text-[#e9edef] truncate leading-tight">
-              {title}
-            </h3>
-            <p className="text-[11px] text-slate-500 dark:text-[#8696a0] truncate leading-tight mt-0.5 flex items-center gap-1">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate leading-tight">
+                {title}
+              </h3>
+              {isProject && (
+                <span className="px-1.5 py-0.2 rounded bg-primary-500/10 text-primary-600 dark:text-primary-400 text-[10px] font-bold">
+                  SQUAD
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate leading-tight mt-0.5 flex items-center gap-1.5 font-medium">
               <span
                 className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                  isConnected ? 'bg-[#25d366]' : 'bg-amber-400'
+                  isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'
                 }`}
               />
-              <span>{typingUsers.length > 0 ? 'typing...' : subtitle}</span>
+              <span>{typingUsers.length > 0 ? `${typingUsers.join(', ')} typing...` : subtitle}</span>
             </p>
           </div>
         </div>
 
-        {/* WhatsApp Top Right Action Buttons */}
-        <div className="flex items-center gap-1 text-slate-500 dark:text-[#aebac1]">
-          {/* In-Chat Search Button */}
+        {/* Top Right Action Controls in Devquox Brand Styling */}
+        <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
+          {/* Audio Call */}
           <button
             type="button"
-            onClick={() => setShowInChatSearch((prev) => !prev)}
-            className={`p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${
-              showInChatSearch ? 'text-[#00a884]' : ''
-            }`}
-            title="Search in chat"
-          >
-            <Search className="w-4 h-4" />
-          </button>
-
-          {/* Voice / Video dummy call indicators */}
-          <button
-            type="button"
-            onClick={() => alert('DevConnect Audio Calls coming soon!')}
-            className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+            onClick={() => {
+              setCallType('voice');
+              setCallModalOpen(true);
+            }}
+            className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary-500 transition-colors"
             title="Voice call"
           >
             <Phone className="w-4 h-4" />
           </button>
+
+          {/* Video Call */}
           <button
             type="button"
-            onClick={() => alert('DevConnect Video Room coming soon!')}
-            className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+            onClick={() => {
+              setCallType('video');
+              setCallModalOpen(true);
+            }}
+            className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary-500 transition-colors"
             title="Video call"
           >
             <Video className="w-4 h-4" />
+          </button>
+
+          {/* In-Chat Search Button */}
+          <button
+            type="button"
+            onClick={() => setShowInChatSearch((prev) => !prev)}
+            className={`p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${
+              showInChatSearch ? 'text-primary-600 bg-primary-50 dark:bg-primary-950/40' : ''
+            }`}
+            title="Search in conversation"
+          >
+            <Search className="w-4 h-4" />
           </button>
 
           {/* Project Workspace Link */}
           {isProject && conversation.project?._id && (
             <Link
               to={`/projects/${conversation.project._id}/workspace`}
-              className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-emerald-600 dark:text-emerald-400"
+              className="p-2 rounded-xl hover:bg-primary-50 dark:hover:bg-primary-950/40 text-primary-600 dark:text-primary-400 transition-colors"
               title="Open Project Workspace"
             >
               <ExternalLink className="w-4 h-4" />
             </Link>
           )}
 
-          {/* More menu */}
+          {/* More Menu & Wallpaper Options */}
           <div className="relative">
             <button
               type="button"
               onClick={() => setShowHeaderMenu((prev) => !prev)}
-              className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+              className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               title="More options"
             >
               <MoreVertical className="w-4 h-4" />
             </button>
 
             {showHeaderMenu && (
-              <div className="absolute right-0 top-10 w-44 rounded-xl bg-white dark:bg-[#233138] shadow-2xl border border-slate-200 dark:border-slate-700 py-1 text-xs text-slate-700 dark:text-slate-200 z-30 animate-scale-in">
+              <div className="absolute right-0 top-11 w-52 rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 py-1.5 text-xs text-slate-700 dark:text-slate-200 z-30 animate-scale-in">
+                <div className="px-3 py-1 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                  Theme Canvas
+                </div>
+                <div className="grid grid-cols-2 gap-1 p-2 border-b border-slate-100 dark:border-slate-800 mb-1">
+                  {[
+                    { id: 'devquox', label: 'Devquox Glass' },
+                    { id: 'matrix', label: 'Matrix Dark' },
+                    { id: 'clean', label: 'Clean Slate' },
+                    { id: 'crimson', label: 'Devquox Red' },
+                  ].map((w) => (
+                    <button
+                      key={w.id}
+                      type="button"
+                      onClick={() => {
+                        setWallpaper(w.id);
+                        setShowHeaderMenu(false);
+                      }}
+                      className={`px-2 py-1.5 rounded-lg text-left text-[11px] font-semibold transition-colors ${
+                        wallpaper === w.id
+                          ? 'bg-primary-600 text-white'
+                          : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      {w.label}
+                    </button>
+                  ))}
+                </div>
+
                 <button
                   type="button"
                   onClick={() => {
                     setShowInChatSearch(true);
                     setShowHeaderMenu(false);
                   }}
-                  className="w-full px-3 py-2 text-left hover:bg-slate-100 dark:hover:bg-[#182229]"
+                  className="w-full px-3 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2"
                 >
-                  Search in conversation
+                  <Search className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Search in conversation</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    alert('Chat notifications muted for 8 hours.');
-                    setShowHeaderMenu(false);
-                  }}
-                  className="w-full px-3 py-2 text-left hover:bg-slate-100 dark:hover:bg-[#182229]"
-                >
-                  Mute notifications
-                </button>
+
                 <button
                   type="button"
                   onClick={() => {
@@ -543,9 +598,10 @@ export const ChatWindow = ({
                     }
                     setShowHeaderMenu(false);
                   }}
-                  className="w-full px-3 py-2 text-left text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                  className="w-full px-3 py-2 text-left text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2"
                 >
-                  Clear chat view
+                  <X className="w-3.5 h-3.5 text-rose-500" />
+                  <span>Clear chat view</span>
                 </button>
               </div>
             )}
@@ -555,18 +611,18 @@ export const ChatWindow = ({
 
       {/* 2. In-Chat Message Search Bar */}
       {showInChatSearch && (
-        <div className="px-4 py-2 bg-white dark:bg-[#182229] border-b border-slate-200 dark:border-slate-700 flex items-center gap-2 animate-slide-up shadow-sm">
+        <div className="px-4 py-2.5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2 animate-slide-up shadow-xs">
           <Search className="w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search loaded messages..."
+            placeholder="Search loaded messages in this conversation..."
             value={inChatSearchQuery}
             onChange={(e) => setInChatSearchQuery(e.target.value)}
-            className="flex-1 text-xs bg-transparent text-[#111b21] dark:text-white focus:outline-none placeholder-slate-400"
+            className="flex-1 text-xs bg-transparent text-slate-900 dark:text-white focus:outline-none placeholder-slate-400"
             autoFocus
           />
           {inChatSearchQuery && (
-            <span className="text-[11px] text-slate-400">
+            <span className="text-[11px] font-semibold text-primary-600">
               {displayedMessages.length} results
             </span>
           )}
@@ -576,34 +632,44 @@ export const ChatWindow = ({
               setShowInChatSearch(false);
               setInChatSearchQuery('');
             }}
-            className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/5 text-slate-400 hover:text-slate-600 dark:hover:text-white"
+            className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-white"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* 3. Error Banner */}
+      {/* 3. Error Banner (Handles 403 Forbidden with friendly workspace action) */}
       {error && (
-        <div className="p-2.5 px-4 bg-rose-50 dark:bg-rose-950/40 border-b border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-300 text-xs flex items-center justify-between">
+        <div className="p-3 px-4 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-900/60 text-amber-900 dark:text-amber-200 text-xs flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{error}</span>
+            <Shield className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <span className="font-semibold">{error.message || error}</span>
           </div>
-          <button
-            onClick={() => setError(null)}
-            className="text-xs hover:underline font-bold"
-          >
-            Dismiss
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {error.projectId && (
+              <Link
+                to={`/projects/${error.projectId}`}
+                className="px-2.5 py-1 rounded-lg bg-primary-600 text-white font-bold hover:bg-primary-700 transition-colors text-[11px]"
+              >
+                View Project
+              </Link>
+            )}
+            <button
+              onClick={() => setError(null)}
+              className="p-1 rounded hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-700 dark:text-amber-300"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       )}
 
-      {/* 4. WhatsApp Chat Wallpaper & Message List */}
+      {/* 4. Chat Messages List Area */}
       {isLoading ? (
         <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-2">
-          <Loader2 className="w-8 h-8 text-[#00a884] animate-spin" />
-          <span className="text-xs text-slate-500 font-medium">Loading messages...</span>
+          <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
+          <span className="text-xs text-slate-500 font-medium">Loading conversation messages...</span>
         </div>
       ) : (
         <MessageList
@@ -612,9 +678,12 @@ export const ChatWindow = ({
           onEditMessage={handleEditMessage}
           onDeleteMessage={handleDeleteMessage}
           onReplyMessage={(msg) => setReplyingTo(msg)}
+          onReactMessage={handleReactMessage}
+          onStarMessage={handleStarMessage}
           onLoadOlder={handleLoadOlder}
           hasOlderMessages={hasOlderMessages}
           isLoadingOlder={isLoadingOlder}
+          wallpaper={wallpaper}
         />
       )}
 
@@ -623,14 +692,22 @@ export const ChatWindow = ({
         <TypingIndicator typingUsers={typingUsers} />
       </div>
 
-      {/* 6. WhatsApp Message Composer */}
+      {/* 6. Message Composer (Solidly pinned to bottom) */}
       <MessageComposer
         onSendMessage={handleSendMessage}
         onTypingChange={handleTypingChange}
         replyingTo={replyingTo}
         onCancelReply={() => setReplyingTo(null)}
-        placeholder={isProject ? `Message #${title}` : 'Type a message'}
+        placeholder={isProject ? `Message squad in #${title}` : 'Type a message...'}
         isSending={isSending}
+      />
+
+      {/* 7. WhatsApp Audio / Video Call Interactive Modal */}
+      <CallModal
+        isOpen={callModalOpen}
+        onClose={() => setCallModalOpen(false)}
+        contact={conversation}
+        callType={callType}
       />
     </div>
   );

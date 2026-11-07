@@ -55,34 +55,32 @@ export const SavedDevelopersPage = () => {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <Link to="/developers" className="text-slate-400 hover:text-slate-600 dark:hover:text-white">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20">
-              <Bookmark className="w-5 h-5 fill-amber-500" />
-            </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-                Saved Developers
-                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                  {totalCount}
-                </span>
-              </h1>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-                Your private roster of bookmarked engineers and collaborators for upcoming projects.
-              </p>
-            </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2 sm:gap-2.5">
+          <Link to="/developers" className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <div className="p-1.5 sm:p-2 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 shrink-0">
+            <Bookmark className="w-4 h-4 sm:w-5 sm:h-5 fill-amber-500" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+              <span>Saved Developers</span>
+              <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                {totalCount}
+              </span>
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 line-clamp-1 sm:line-clamp-none">
+              Your private roster of bookmarked engineers and collaborators.
+            </p>
           </div>
         </div>
 
         <Link to="/developers">
-          <Button size="sm" variant="outline" className="text-xs gap-1.5 self-start sm:self-auto">
-            <Users className="w-4 h-4" /> Discover More Developers
+          <Button size="sm" variant="outline" className="text-xs gap-1.5 h-8 px-3 rounded-xl self-start sm:self-auto whitespace-nowrap">
+            <Users className="w-3.5 h-3.5" /> <span>Discover More</span>
           </Button>
         </Link>
       </div>

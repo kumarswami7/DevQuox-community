@@ -13,14 +13,55 @@ import {
   ArrowRight,
   Loader2,
   FolderKanban,
+  Edit3,
+  Trash2,
+  X,
 } from 'lucide-react';
 import { projectService } from '../services/projectService';
+import { ProjectDetailsEditModal } from '../components/workspace/ProjectDetailsEditModal';
 
 export const MyProjectsPage = () => {
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('all');
+  const [editingProject, setEditingProject] = useState(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const [actionError, setActionError] = useState('');
+  const [actionSuccess, setActionSuccess] = useState('');
+
+  const handleDeleteProject = async (projectId, projectTitle) => {
+    if (!window.confirm(`Are you sure you want to permanently delete "${projectTitle}"? This cannot be undone.`)) return;
+    try {
+      setDeletingId(projectId);
+      setActionError('');
+      await projectService.deleteProject(projectId);
+      setProjects((prev) => prev.filter((p) => p._id !== projectId));
+      setActionSuccess(`"${projectTitle}" was successfully deleted.`);
+    } catch (err) {
+      setActionError(err.response?.data?.message || 'Failed to delete project.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleSaveProjectEdit = async (payload) => {
+    if (!editingProject?._id) return;
+    try {
+      setIsSavingEdit(true);
+      setActionError('');
+      const res = await projectService.updateProject(editingProject._id, payload);
+      const updated = res.data?.project || res.data?.data || res.data;
+      setProjects((prev) => prev.map((p) => (p._id === editingProject._id ? { ...p, ...updated } : p)));
+      setEditingProject(null);
+      setActionSuccess('Project details updated successfully!');
+    } catch (err) {
+      setActionError(err.response?.data?.message || 'Failed to update project.');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
 
   const fetchMyProjects = async () => {
     setLoading(true);
@@ -73,6 +114,31 @@ export const MyProjectsPage = () => {
           </Button>
         </Link>
       </div>
+
+      {/* Action Banners */}
+      {actionSuccess && (
+        <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 text-xs font-semibold border border-emerald-200 dark:border-emerald-900/50 flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4" />
+            {actionSuccess}
+          </span>
+          <button onClick={() => setActionSuccess('')} className="hover:opacity-75">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {actionError && (
+        <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 text-rose-500 text-xs font-semibold border border-rose-200 dark:border-rose-900/50 flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4" />
+            {actionError}
+          </span>
+          <button onClick={() => setActionError('')} className="hover:opacity-75">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Metrics Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -150,6 +216,17 @@ export const MyProjectsPage = () => {
                     >
                       {proj.status.replace('_', ' ')}
                     </Badge>
+                    {((proj.applicationStatus || 'open') === 'open' && proj.status === 'open') ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 whitespace-nowrap">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                        <span><span className="hidden sm:inline">Applications </span>Open</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 whitespace-nowrap">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                        <span><span className="hidden sm:inline">Applications </span>Closed</span>
+                      </span>
+                    )}
                     <span className="text-[11px] font-semibold text-slate-400">• {proj.category}</span>
                   </div>
 
@@ -172,12 +249,31 @@ export const MyProjectsPage = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 w-full md:w-auto justify-end pt-3 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2 w-full md:w-auto justify-end pt-3 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-slate-800 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setEditingProject(proj)}
+                    className="w-8 h-8 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-all shadow-xs"
+                    title="Edit project details"
+                  >
+                    <Edit3 className="w-3.5 h-3.5 text-primary-500" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteProject(proj._id, proj.title)}
+                    disabled={deletingId === proj._id}
+                    className="w-8 h-8 rounded-xl border border-rose-200 dark:border-rose-900 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 flex items-center justify-center transition-all shadow-xs"
+                    title="Delete project"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+
                   <Link to={`/projects/${proj._id}`}>
-                    <Button variant="primary" size="sm" className="gap-1.5 shadow-sm text-xs">
-                      <Users className="w-4 h-4" />
-                      <span>Review Applicants</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                    <Button variant="primary" size="sm" className="gap-1.5 shadow-sm text-xs h-8 px-3 rounded-xl">
+                      <Users className="w-3.5 h-3.5" />
+                      <span>Review</span>
+                      <ArrowRight className="w-3 h-3" />
                     </Button>
                   </Link>
                 </div>
@@ -200,6 +296,17 @@ export const MyProjectsPage = () => {
             </Button>
           </Link>
         </Card>
+      )}
+
+      {/* Edit Project Details Modal */}
+      {editingProject && (
+        <ProjectDetailsEditModal
+          isOpen={Boolean(editingProject)}
+          onClose={() => setEditingProject(null)}
+          project={editingProject}
+          onSave={handleSaveProjectEdit}
+          isProcessing={isSavingEdit}
+        />
       )}
     </div>
   );

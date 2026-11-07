@@ -227,42 +227,42 @@ export const CreatorAnalyticsPage = () => {
   const categoryCounts = contentData.categoryCounts || {};
 
   return (
-    <div className="max-w-7xl mx-auto space-y-7 pb-20 animate-in fade-in duration-200">
+    <div className="max-w-7xl mx-auto space-y-5 sm:space-y-7 pb-20 animate-in fade-in duration-200">
       {/* ─────────────────────────────────────────────────────────────────── */}
       {/* 1. CREATOR HERO BANNER & DATE RANGE CONTROLS                        */}
       {/* ─────────────────────────────────────────────────────────────────── */}
-      <div className="relative rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-white via-slate-50 to-primary-50/30 dark:from-cardDark dark:via-slate-900/80 dark:to-primary-950/20 border border-slate-200/90 dark:border-slate-800 shadow-sm overflow-hidden">
+      <div className="relative rounded-2xl sm:rounded-3xl p-4 sm:p-7 bg-gradient-to-br from-white via-slate-50 to-primary-50/20 dark:from-cardDark dark:via-slate-900/90 dark:to-primary-950/20 border border-slate-200/90 dark:border-slate-800 shadow-sm overflow-hidden">
         {/* Glow ambient background effects */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-primary-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-80 sm:w-96 h-80 sm:h-96 bg-primary-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-64 sm:w-80 h-64 sm:h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 sm:gap-6 relative z-10">
           {/* Creator Profile Info */}
-          <div className="flex items-start sm:items-center gap-4">
+          <div className="flex items-start sm:items-center gap-3 sm:gap-4">
             <Avatar
               src={currentUser?.avatar || currentUser?.avatarUrl}
               name={currentUser?.name || 'Creator'}
-              size="xl"
-              className="ring-4 ring-primary-500/20 shrink-0"
+              size="lg"
+              className="ring-3 ring-primary-500/20 shrink-0"
             />
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+            <div className="space-y-1 min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                <h1 className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight truncate">
                   {currentUser?.name || 'Developer Creator'}
                 </h1>
                 <span className="text-xs font-semibold text-slate-400">
                   @{currentUser?.username || 'user'}
                 </span>
-                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800 flex items-center gap-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800 flex items-center gap-1.5 whitespace-nowrap">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Live Telemetry Active
+                  Live Telemetry
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 line-clamp-1 max-w-xl">
                 {currentUser?.headline || 'Open Source Builder, Community Creator & Full-Stack Developer'}
               </p>
               <div className="text-[11px] text-slate-400 flex items-center gap-2 pt-0.5">
-                <span>{categoryCounts.all || 0} Total Assets Tracked</span>
+                <span>{categoryCounts.all || 0} Assets Tracked</span>
                 <span>•</span>
                 <span>Real-time audience reach & conversions</span>
               </div>
@@ -270,9 +270,9 @@ export const CreatorAnalyticsPage = () => {
           </div>
 
           {/* Quick Actions & Range Selector */}
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 shrink-0">
             {/* Date Range Selector */}
-            <div className="flex items-center p-1 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
+            <div className="flex items-center p-1 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-2xs overflow-x-auto no-scrollbar max-w-full">
               {[
                 { id: '7d', label: '7D' },
                 { id: '30d', label: '30D' },
@@ -285,9 +285,9 @@ export const CreatorAnalyticsPage = () => {
                   key={r.id}
                   type="button"
                   onClick={() => setDateRange(r.id)}
-                  className={`px-2.5 py-1 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                  className={`px-2.5 sm:px-3 py-1 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
                     dateRange === r.id
-                      ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
+                      ? 'bg-primary-600 text-white shadow-xs font-black'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
@@ -296,102 +296,196 @@ export const CreatorAnalyticsPage = () => {
               ))}
             </div>
 
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => loadAnalytics(true)}
-              disabled={refreshing}
-              className="gap-1.5 font-bold border-slate-200 dark:border-slate-800"
-              title="Refresh telemetry"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-primary-500' : ''}`} />
-              <span>Refresh</span>
-            </Button>
-
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleExportCSV}
-              className="gap-1.5 font-bold border-slate-200 dark:border-slate-800"
-              title="Export Analytics as CSV"
-            >
-              <Download className="w-3.5 h-3.5 text-slate-400" />
-              <span>Export CSV</span>
-            </Button>
-
-            <Link to="/projects/create">
-              <Button size="sm" variant="primary" className="gap-1.5 font-bold shadow-glow-primary">
-                <Rocket className="w-4 h-4" />
-                <span>Post a Project</span>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => loadAnalytics(true)}
+                disabled={refreshing}
+                className="gap-1.5 font-bold border-slate-200 dark:border-slate-800 text-xs h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl"
+                title="Refresh telemetry"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-primary-500' : ''}`} />
+                <span className="hidden sm:inline">Refresh</span>
               </Button>
-            </Link>
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleExportCSV}
+                className="gap-1.5 font-bold border-slate-200 dark:border-slate-800 text-xs h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl"
+                title="Export Analytics as CSV"
+              >
+                <Download className="w-3.5 h-3.5 text-slate-400" />
+                <span className="hidden sm:inline">Export CSV</span>
+              </Button>
+
+              <Link to="/projects/create">
+                <Button size="sm" variant="primary" className="gap-1.5 font-bold shadow-sm text-xs h-8 sm:h-9 px-3 rounded-xl">
+                  <Rocket className="w-3.5 h-3.5" />
+                  <span>Post Project</span>
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </div>
 
       {/* ─────────────────────────────────────────────────────────────────── */}
-      {/* 2. TOP-LEVEL 12 MAIN KPI OVERVIEW GRID                              */}
+      {/* 2. TOP-LEVEL EXECUTIVE TELEMETRY & REACH KPIS                       */}
       {/* ─────────────────────────────────────────────────────────────────── */}
-      <div>
-        <div className="flex items-center justify-between mb-3 px-1">
+      <div className="space-y-3.5 sm:space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 px-1">
           <div className="flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-primary-500" />
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-              Executive Telemetry & Reach KPIs
-            </h2>
+            <div className="p-1.5 rounded-xl bg-primary-500/10 text-primary-600 dark:text-primary-400">
+              <BarChart3 className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white tracking-tight">
+                Executive Telemetry & Growth Signals
+              </h2>
+              <p className="text-xs text-slate-400">
+                Comparing against previous {dateRange} period
+              </p>
+            </div>
           </div>
-          <span className="text-xs text-slate-400">
-            Comparing against previous {dateRange} period
+          <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full border border-emerald-200/80 dark:border-emerald-800 self-start sm:self-auto">
+            Live Stream Connected
           </span>
         </div>
 
         {overviewKPIs ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
-            {Object.entries(overviewKPIs).map(([key, kpi]) => {
-              const isPositive = kpi.change >= 0;
-              return (
-                <Card
-                  key={key}
-                  className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-cardDark space-y-1.5 shadow-2xs hover:shadow-md transition-all group"
-                  title={kpi.tooltip}
-                >
-                  <div className="flex items-center justify-between text-slate-400">
-                    <span className="text-[10px] font-bold uppercase tracking-wider truncate">
-                      {kpi.label}
-                    </span>
-                    <HelpCircle className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
+          <div className="space-y-3 sm:space-y-3.5">
+            {/* Tier 1: 4 Core Growth Drivers */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              {[
+                {
+                  key: 'totalReach',
+                  label: 'Total Reach',
+                  tooltip: overviewKPIs.totalReach?.tooltip,
+                  value: overviewKPIs.totalReach?.value,
+                  change: overviewKPIs.totalReach?.change,
+                  icon: BarChart2,
+                  accentColor: 'text-emerald-600 dark:text-emerald-400',
+                  accentBg: 'bg-emerald-500/10',
+                },
+                {
+                  key: 'uniqueViewers',
+                  label: 'Unique Viewers',
+                  tooltip: overviewKPIs.uniqueViewers?.tooltip,
+                  value: overviewKPIs.uniqueViewers?.value,
+                  change: overviewKPIs.uniqueViewers?.change,
+                  icon: Eye,
+                  accentColor: 'text-blue-600 dark:text-blue-400',
+                  accentBg: 'bg-blue-500/10',
+                },
+                {
+                  key: 'engagementRate',
+                  label: 'Engagement Rate',
+                  tooltip: overviewKPIs.engagementRate?.tooltip,
+                  value: overviewKPIs.engagementRate?.value,
+                  change: overviewKPIs.engagementRate?.change,
+                  icon: Percent,
+                  accentColor: 'text-purple-600 dark:text-purple-400',
+                  accentBg: 'bg-purple-500/10',
+                },
+                {
+                  key: 'projectApplications',
+                  label: 'Proposals / Inbound',
+                  tooltip: overviewKPIs.projectApplications?.tooltip,
+                  value: overviewKPIs.projectApplications?.value,
+                  change: overviewKPIs.projectApplications?.change,
+                  icon: Users,
+                  accentColor: 'text-primary-600 dark:text-primary-400',
+                  accentBg: 'bg-primary-500/10',
+                },
+              ].map((driver) => {
+                const Icon = driver.icon;
+                const isPositive = driver.change >= 0;
+                return (
+                  <Card
+                    key={driver.key}
+                    className="p-3.5 sm:p-5 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-cardDark space-y-2 sm:space-y-2.5 shadow-sm hover:shadow-md transition-all group"
+                    title={driver.tooltip}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className={`p-1.5 sm:p-2 rounded-xl ${driver.accentBg} ${driver.accentColor} shrink-0`}>
+                        <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      </div>
+                      <div className="flex items-center gap-0.5 text-[11px] sm:text-xs font-bold">
+                        {isPositive ? (
+                          <span className="text-emerald-600 dark:text-emerald-400 flex items-center">
+                            <ArrowUpRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                            +{driver.change}%
+                          </span>
+                        ) : (
+                          <span className="text-rose-600 dark:text-rose-400 flex items-center">
+                            <ArrowDownRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                            {driver.change}%
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
-                  <div className="text-2xl font-black text-slate-900 dark:text-white">
-                    {typeof kpi.value === 'number' ? kpi.value.toLocaleString() : kpi.value}
-                  </div>
+                    <div>
+                      <div className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                        {typeof driver.value === 'number' ? driver.value.toLocaleString() : driver.value || 0}
+                      </div>
+                      <div className="text-[11px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                        {driver.label}
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
 
-                  {/* Period Change Trend Indicator */}
-                  <div className="flex items-center gap-1 text-[10px] font-bold">
-                    {isPositive ? (
-                      <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
-                        <ArrowUpRight className="w-3 h-3" />
-                        +{kpi.change}%
+            {/* Tier 2: Secondary Activity Metrics Breakdown */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-2.5">
+              {[
+                { key: 'reactions', label: 'Reactions', icon: Heart, color: 'text-rose-500' },
+                { key: 'comments', label: 'Reviews', icon: MessageSquare, color: 'text-amber-500' },
+                { key: 'shares', label: 'Shares', icon: Share2, color: 'text-emerald-500' },
+                { key: 'saves', label: 'Saves', icon: Bookmark, color: 'text-amber-500' },
+                { key: 'linkClicks', label: 'Clicks', icon: MousePointer, color: 'text-blue-500' },
+                { key: 'profileVisits', label: 'Profile Views', icon: Users, color: 'text-indigo-500' },
+                { key: 'conversions', label: 'Idea Launches', icon: Rocket, color: 'text-purple-500' },
+                { key: 'totalImpressions', label: 'Impressions', icon: Sparkles, color: 'text-teal-500' },
+              ].map((metric) => {
+                const kpi = overviewKPIs[metric.key] || { value: 0, change: 0 };
+                const Icon = metric.icon;
+                const isPositive = kpi.change >= 0;
+                return (
+                  <div
+                    key={metric.key}
+                    className="p-2.5 sm:p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-cardDark space-y-1 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition-all"
+                    title={kpi.tooltip}
+                  >
+                    <div className="flex items-center justify-between text-slate-400 text-[10px]">
+                      <span className="font-bold uppercase tracking-wider truncate">
+                        {metric.label}
                       </span>
-                    ) : (
-                      <span className="text-rose-600 dark:text-rose-400 flex items-center gap-0.5">
-                        <ArrowDownRight className="w-3 h-3" />
-                        {kpi.change}%
-                      </span>
-                    )}
-                    <span className="text-slate-400 font-normal">vs prev</span>
+                      <Icon className={`w-3 h-3 ${metric.color} shrink-0`} />
+                    </div>
+                    <div className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
+                      {typeof kpi.value === 'number' ? kpi.value.toLocaleString() : kpi.value}
+                    </div>
+                    <div className="text-[10px] font-bold text-slate-400">
+                      {isPositive ? (
+                        <span className="text-emerald-600 dark:text-emerald-400">+{kpi.change}%</span>
+                      ) : (
+                        <span className="text-rose-600 dark:text-rose-400">{kpi.change}%</span>
+                      )}
+                    </div>
                   </div>
-                </Card>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
-            {[...Array(12)].map((_, i) => (
-              <div
-                key={i}
-                className="h-24 rounded-2xl bg-slate-100 dark:bg-slate-800/50 animate-pulse"
-              />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-24 sm:h-28 rounded-2xl bg-slate-100 dark:bg-slate-800/50 animate-pulse" />
             ))}
           </div>
         )}
@@ -480,16 +574,16 @@ export const CreatorAnalyticsPage = () => {
       {/* ─────────────────────────────────────────────────────────────────── */}
       <div className="space-y-4">
         {/* Category Tabs & Search Bar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-3xl bg-white dark:bg-cardDark border border-slate-200/90 dark:border-slate-800 shadow-2xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white dark:bg-cardDark border border-slate-200/90 dark:border-slate-800 shadow-2xs">
           {/* Tabs */}
-          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 md:pb-0">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scrollbar-none pb-1 md:pb-0">
             {[
-              { id: 'all', label: `All Content (${categoryCounts.all || 0})`, icon: Sparkles },
+              { id: 'all', label: `All (${categoryCounts.all || 0})`, icon: Sparkles },
               { id: 'ideas', label: `Ideas (${categoryCounts.ideas || 0})`, icon: Lightbulb },
               { id: 'projects', label: `Projects (${categoryCounts.projects || 0})`, icon: Rocket },
               { id: 'discussions', label: `Discussions (${categoryCounts.discussions || 0})`, icon: MessageSquare },
-              { id: 'questions', label: `Questions (${categoryCounts.questions || 0})`, icon: HelpCircle },
-              { id: 'showcases', label: `Showcases (${categoryCounts.showcases || 0})`, icon: StarIcon },
+              { id: 'questions', label: `Q&A (${categoryCounts.questions || 0})`, icon: HelpCircle },
+              { id: 'showcases', label: `Showcase (${categoryCounts.showcases || 0})`, icon: StarIcon },
               { id: 'tutorials', label: `Tutorials (${categoryCounts.tutorials || 0})`, icon: FileText },
             ].map((tab) => {
               const isSelected = activeTab === tab.id;
@@ -502,13 +596,13 @@ export const CreatorAnalyticsPage = () => {
                     setActiveTab(tab.id);
                     setCurrentPage(1);
                   }}
-                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
                     isSelected
-                      ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
+                      ? 'bg-primary-600 text-white shadow-xs font-black shadow-primary-600/20'
                       : 'bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700/80 text-slate-600 dark:text-slate-300'
                   }`}
                 >
-                  <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-primary-400 dark:text-primary-600' : 'text-slate-400'}`} />
+                  <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-slate-400'}`} />
                   <span>{tab.label}</span>
                 </button>
               );
@@ -516,19 +610,31 @@ export const CreatorAnalyticsPage = () => {
           </div>
 
           {/* Search & Sort Controls */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 sm:gap-2.5">
             <div className="relative flex-1 sm:w-64">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search title or tags..."
+                placeholder="Search submissions or tags..."
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-primary-500"
+                className="w-full pl-8 pr-7 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-primary-500 transition-colors"
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setCurrentPage(1);
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
             </div>
 
             <select
@@ -537,11 +643,11 @@ export const CreatorAnalyticsPage = () => {
                 setSortBy(e.target.value);
                 setCurrentPage(1);
               }}
-              className="px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold focus:outline-none cursor-pointer"
+              className="px-2.5 sm:px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold focus:outline-none cursor-pointer"
             >
               <option value="highest_reach">Highest Reach</option>
               <option value="highest_engagement">Highest Engagement</option>
-              <option value="most_comments">Most Comments</option>
+              <option value="most_comments">Most Reviews</option>
               <option value="most_shared">Most Shared</option>
               <option value="most_clicked">Most Clicked</option>
               <option value="highest_conversion">Highest Conversion</option>
@@ -560,7 +666,7 @@ export const CreatorAnalyticsPage = () => {
             </p>
           </div>
         ) : (contentData.content || []).length === 0 ? (
-          <Card className="p-16 text-center rounded-3xl border border-slate-200/90 dark:border-slate-800 space-y-3">
+          <Card className="p-12 sm:p-16 text-center rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800 space-y-3">
             <div className="w-12 h-12 rounded-2xl bg-primary-50 dark:bg-primary-950/60 text-primary-600 dark:text-primary-400 flex items-center justify-center mx-auto mb-2">
               <BarChart3 className="w-6 h-6" />
             </div>
@@ -574,13 +680,13 @@ export const CreatorAnalyticsPage = () => {
             </p>
             <div className="flex items-center justify-center gap-3 pt-2">
               <Link to="/dashboard">
-                <Button size="sm" variant="outline" className="gap-1.5 font-bold">
+                <Button size="sm" variant="outline" className="gap-1.5 font-bold rounded-xl text-xs">
                   <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
                   <span>Pitch an Idea</span>
                 </Button>
               </Link>
               <Link to="/projects/create">
-                <Button size="sm" variant="primary" className="gap-1.5 font-bold shadow-glow-primary">
+                <Button size="sm" variant="primary" className="gap-1.5 font-bold shadow-sm rounded-xl text-xs">
                   <Rocket className="w-3.5 h-3.5" />
                   <span>Post a Project</span>
                 </Button>
@@ -588,7 +694,7 @@ export const CreatorAnalyticsPage = () => {
             </div>
           </Card>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3.5 sm:space-y-4">
             {(contentData.content || []).map((item) => {
               const isIdea = item.contentType === 'idea';
               const isProj = item.contentType === 'project';
@@ -599,13 +705,13 @@ export const CreatorAnalyticsPage = () => {
               return (
                 <Card
                   key={item.contentId}
-                  className="p-5 sm:p-6 rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-cardDark space-y-4 hover:border-primary-500/40 hover:shadow-md transition-all"
+                  className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-cardDark space-y-3 sm:space-y-4 hover:border-primary-500/40 hover:shadow-md transition-all"
                 >
                   {/* Top Bar: Badge, Published Date, Conversion Indicator */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+                        className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-bold ${
                           isIdea
                             ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-300/60 dark:border-amber-800/70'
                             : isProj
@@ -614,11 +720,11 @@ export const CreatorAnalyticsPage = () => {
                         }`}
                       >
                         {isIdea ? (
-                          <Lightbulb className="w-3.5 h-3.5 text-amber-500 fill-amber-500/30" />
+                          <Lightbulb className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-500 fill-amber-500/30" />
                         ) : isProj ? (
-                          <Rocket className="w-3.5 h-3.5 text-primary-500" />
+                          <Rocket className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary-500" />
                         ) : (
-                          <MessageSquare className="w-3.5 h-3.5 text-indigo-500" />
+                          <MessageSquare className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-indigo-500" />
                         )}
                         <span className="capitalize">{item.contentType}</span>
                       </span>
@@ -626,7 +732,7 @@ export const CreatorAnalyticsPage = () => {
                       {isProj && (
                         <Badge
                           variant={item.status === 'completed' ? 'success' : 'primary'}
-                          className="text-[10px] font-bold uppercase"
+                          className="text-[9px] sm:text-[10px] font-bold uppercase"
                         >
                           {item.status || 'open'}
                         </Badge>
@@ -658,9 +764,9 @@ export const CreatorAnalyticsPage = () => {
                       to={openLink}
                       className="hover:text-primary-600 transition-colors inline-block"
                     >
-                      <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white line-clamp-1 flex items-center gap-1.5">
+                      <h3 className="text-sm sm:text-base md:text-lg font-bold text-slate-900 dark:text-white line-clamp-1 flex items-center gap-1.5">
                         <span>{item.title}</span>
-                        <ArrowUpRight className="w-4 h-4 text-slate-400 opacity-60" />
+                        <ArrowUpRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 opacity-60" />
                       </h3>
                     </Link>
                     <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
@@ -668,103 +774,103 @@ export const CreatorAnalyticsPage = () => {
                     </p>
                   </div>
 
-                  {/* Granular Metric Blocks */}
-                  <div className="grid grid-cols-2 sm:grid-cols-6 gap-2.5 p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/70 dark:border-slate-800">
+                  {/* Granular Metric Blocks: 3 columns on mobile, 6 on desktop */}
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-2.5 p-3 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/70 dark:border-slate-800">
                     <div className="space-y-0.5">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                        <BarChart2 className="w-3 h-3 text-emerald-500" /> Reach
+                        <BarChart2 className="w-3 h-3 text-emerald-500 shrink-0" /> Reach
                       </span>
-                      <div className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
+                      <div className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">
                         {item.impressions.toLocaleString()}
                       </div>
                     </div>
 
                     <div className="space-y-0.5">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                        <Eye className="w-3 h-3 text-blue-500" /> Viewers
+                        <Eye className="w-3 h-3 text-blue-500 shrink-0" /> Viewers
                       </span>
-                      <div className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
+                      <div className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">
                         {item.uniqueViewers.toLocaleString()}
                       </div>
                     </div>
 
                     <div className="space-y-0.5">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                        <Heart className="w-3 h-3 text-rose-500" /> Upvotes
+                        <Heart className="w-3 h-3 text-rose-500 shrink-0" /> Upvotes
                       </span>
-                      <div className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
+                      <div className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">
                         {item.reactions}
                       </div>
                     </div>
 
                     <div className="space-y-0.5">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                        <MessageSquare className="w-3 h-3 text-amber-500" /> Reviews
+                        <MessageSquare className="w-3 h-3 text-amber-500 shrink-0" /> Reviews
                       </span>
-                      <div className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
+                      <div className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">
                         {item.comments}
                       </div>
                     </div>
 
                     <div className="space-y-0.5">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                        <MousePointer className="w-3 h-3 text-indigo-500" /> Clicks
+                        <MousePointer className="w-3 h-3 text-indigo-500 shrink-0" /> Clicks
                       </span>
-                      <div className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
+                      <div className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">
                         {item.clicks}
                       </div>
                     </div>
 
                     <div className="space-y-0.5">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                        <Percent className="w-3 h-3 text-purple-500" /> Engagement
+                        <Percent className="w-3 h-3 text-purple-500 shrink-0" /> Engaged
                       </span>
-                      <div className="text-sm sm:text-base font-black text-emerald-600 dark:text-emerald-400">
+                      <div className="text-xs sm:text-sm font-black text-emerald-600 dark:text-emerald-400">
                         {item.engagementRate}
                       </div>
                     </div>
                   </div>
 
                   {/* Actions Strip */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                       <button
                         type="button"
                         onClick={() => setInspectingItem(item)}
-                        className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+                        className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
                       >
                         <BarChart2 className="w-3.5 h-3.5 text-primary-500" />
-                        <span>View Analytics</span>
+                        <span>Analytics</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => handleOpenComments(item)}
-                        className="px-3 py-1.5 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 hover:bg-amber-100 transition-colors flex items-center gap-1.5 cursor-pointer"
+                        className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-300/80 dark:border-amber-800/80 hover:bg-amber-100/70 transition-colors flex items-center gap-1.5 cursor-pointer"
                       >
                         <MessageSquare className="w-3.5 h-3.5 text-amber-500" />
-                        <span>View Comments ({item.comments})</span>
+                        <span>Reviews ({item.comments})</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => handleOpenShare(item)}
-                        className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer"
+                        className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer"
                       >
                         <Share2 className="w-3.5 h-3.5" />
-                        <span>Share</span>
+                        <span className="hidden sm:inline">Share</span>
                       </button>
                     </div>
 
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2 justify-end">
                       {isIdea && !item.convertedToProject && (
                         <Link to={`/projects/create?fromIdea=${item.sourceId}`}>
                           <Button
                             size="xs"
                             variant="primary"
-                            className="gap-1 font-bold bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-xs"
+                            className="gap-1 font-bold bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-xs h-7.5 px-2.5 sm:px-3 rounded-lg text-[11px]"
                           >
-                            <Rocket className="w-3.5 h-3.5" />
+                            <Rocket className="w-3 h-3" />
                             <span>Launch as Project</span>
                           </Button>
                         </Link>
@@ -772,9 +878,9 @@ export const CreatorAnalyticsPage = () => {
 
                       <Link
                         to={openLink}
-                        className="text-xs font-bold text-primary-600 hover:underline flex items-center gap-1"
+                        className="text-xs font-bold text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1 py-1 px-1.5"
                       >
-                        <span>Open Content</span>
+                        <span>Open Asset</span>
                         <ExternalLink className="w-3.5 h-3.5" />
                       </Link>
                     </div>

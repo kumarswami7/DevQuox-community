@@ -379,17 +379,36 @@ discoveryRouter.get('/projects', optionalAuth, async (req, res, next) => {
 });
 
 // GET /api/v1/discovery/recommendations/projects
-discoveryRouter.get('/recommendations/projects', async (req, res, next) => {
+discoveryRouter.get('/recommendations/projects', optionalAuth, async (req, res, next) => {
   try {
-    const topProjects = await Project.find({ status: { $in: ['open', 'Open'] } })
+    const query = { status: { $in: ['open', 'Open'] } };
+
+    if (req.user && req.user._id) {
+      // Exclude projects created by the user themselves
+      query.owner = { $ne: req.user._id };
+
+      // Also exclude projects the user has already applied to
+      const userApplications = await Application.find({
+        applicant: req.user._id,
+        status: { $ne: 'withdrawn' },
+      }).select('project').lean();
+
+      if (userApplications.length > 0) {
+        const appliedProjectIds = userApplications.map((a) => a.project);
+        query._id = { $nin: appliedProjectIds };
+      }
+    }
+
+    const topProjects = await Project.find(query)
       .populate('owner', 'name username avatar avatarUrl role')
       .sort({ createdAt: -1 })
       .limit(6);
 
     const recommendations = topProjects.map((p) => ({
       item: p,
+      project: p,
       score: 90,
-      reason: 'Actively recruiting developers with competitive budgets',
+      reason: 'Actively recruiting developers for collaborative engineering',
     }));
 
     return res.status(200).json({ success: true, data: recommendations });

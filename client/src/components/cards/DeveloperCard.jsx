@@ -112,44 +112,45 @@ export const DeveloperCard = ({
 
   return (
     <>
-      <Card className="glass-card hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between h-full group relative overflow-hidden border-slate-200/90 dark:border-slate-800/80 shadow-sm hover:shadow-md">
+      <Card className="glass-card hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between h-full group relative overflow-hidden border-slate-200/90 dark:border-slate-800/80 shadow-sm hover:shadow-md rounded-2xl">
         {/* Subtle accent corner glow */}
         <div className="absolute top-0 right-0 w-28 h-28 bg-primary-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-primary-500/10 transition-colors" />
 
-        <div className="p-4 space-y-3">
+        <div className="p-3.5 sm:p-4 space-y-2.5 sm:space-y-3">
           {/* Top Row: Avatar, Identity, Rating, Bookmark Button */}
-          <div className="flex items-start justify-between gap-2.5">
-            <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-start justify-between gap-2 sm:gap-2.5">
+            <div className="flex items-start gap-2.5 sm:gap-3 min-w-0 flex-1">
               <Avatar
                 src={developer.avatar || developer.avatarUrl}
                 name={developer.name}
-                size="lg"
+                size="md"
                 status={rawAvailability === "available" ? "online" : "idle"}
+                className="shrink-0 mt-0.5 aspect-square"
               />
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 min-w-0">
                   <Link
                     to={`/profile/${devId}`}
-                    className="text-sm font-extrabold text-slate-900 dark:text-white hover:text-primary-500 transition-colors truncate block"
+                    className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white hover:text-primary-600 transition-colors truncate block"
                   >
                     {developer.name}
                   </Link>
                   <CheckCircle2
-                    className="w-4 h-4 text-primary-500 fill-primary-500/20 shrink-0"
+                    className="w-3.5 h-3.5 text-primary-600 fill-primary-600/20 shrink-0"
                     title="Verified Developer Profile"
                   />
                 </div>
 
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium line-clamp-1 mt-0.5">
+                <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium line-clamp-1 mt-0.5">
                   {headline}
                 </p>
 
-                <div className="flex items-center gap-2 mt-1 text-xs text-amber-500 font-bold">
+                <div className="flex items-center gap-1.5 mt-1 text-[11px] sm:text-xs text-amber-500 font-bold">
                   <span className="flex items-center gap-1">
-                    <Star className="w-3.5 h-3.5 fill-amber-500" />
+                    <Star className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-amber-500" />
                     <span>{ratingValue}</span>
                   </span>
-                  <span className="text-[11px] text-slate-400 font-normal">
+                  <span className="text-[10px] sm:text-[11px] text-slate-400 font-normal">
                     ({completedCount} built)
                   </span>
                 </div>
@@ -157,7 +158,7 @@ export const DeveloperCard = ({
             </div>
 
             {/* Availability & Bookmark Action */}
-            <div className="flex flex-col items-end gap-1.5 shrink-0">
+            <div className="flex flex-col items-end gap-1 shrink-0">
               <div className="flex items-center gap-1">
                 {isAuthenticated && onToggleBookmark && (
                   <button
@@ -167,7 +168,7 @@ export const DeveloperCard = ({
                       e.stopPropagation();
                       onToggleBookmark();
                     }}
-                    className={`p-1.5 rounded-lg transition-colors ${
+                    className={`p-1 sm:p-1.5 rounded-lg transition-colors ${
                       isBookmarked
                         ? "bg-amber-500/10 text-amber-500 hover:bg-amber-500/20"
                         : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -175,19 +176,19 @@ export const DeveloperCard = ({
                     title={isBookmarked ? "Saved in Bookmarks" : "Save Developer"}
                   >
                     <Bookmark
-                      className={`w-4 h-4 ${
+                      className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${
                         isBookmarked ? "fill-amber-500 text-amber-500" : ""
                       }`}
                     />
                   </button>
                 )}
-                <Badge variant={availabilityVariant} className="text-[10px]">
+                <Badge variant={availabilityVariant} className="text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 whitespace-nowrap">
                   {availabilityLabel}
                 </Badge>
               </div>
 
               {developer.experienceLevel && (
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   {developer.experienceLevel}
                 </span>
               )}
@@ -210,18 +211,18 @@ export const DeveloperCard = ({
           )}
 
           {/* Skill Chips */}
-          <div className="flex flex-wrap gap-1.5 pt-1">
+          <div className="flex flex-wrap gap-1 sm:gap-1.5 pt-0.5">
             {skills.slice(0, 5).map((skill) => (
               <span
                 key={skill}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-primary-500/10 text-primary-700 dark:text-primary-300 border border-primary-500/20"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-primary-500/10 text-primary-700 dark:text-primary-300 border border-primary-500/20 whitespace-nowrap"
               >
                 <TechnologyIcon name={skill} size="xs" />
                 <span>{skill}</span>
               </span>
             ))}
             {skills.length > 5 && (
-              <span className="px-1.5 py-0.5 rounded-lg text-[10px] font-semibold text-slate-400 bg-slate-100 dark:bg-slate-800">
+              <span className="px-1.5 py-0.5 rounded-lg text-[10px] font-semibold text-slate-400 bg-slate-100 dark:bg-slate-800 whitespace-nowrap">
                 +{skills.length - 5}
               </span>
             )}
@@ -229,9 +230,9 @@ export const DeveloperCard = ({
         </div>
 
         {/* Action Buttons Footer */}
-        <div className="p-3 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/20 flex items-center justify-between gap-2">
+        <div className="p-2.5 sm:p-3 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/20 flex items-center justify-between gap-2">
           <Link to={`/profile/${devId}`} className="flex-1">
-            <Button size="sm" variant="outline" className="w-full text-xs font-semibold">
+            <Button size="sm" variant="outline" className="w-full text-xs font-semibold h-8 sm:h-9 rounded-xl">
               View Profile
             </Button>
           </Link>
@@ -240,7 +241,7 @@ export const DeveloperCard = ({
             size="sm"
             variant="primary"
             onClick={() => setIsInviteOpen(true)}
-            className="gap-1.5 flex-1 shadow-sm text-xs font-semibold"
+            className="gap-1.5 flex-1 shadow-sm text-xs font-semibold h-8 sm:h-9 rounded-xl"
           >
             <MessageSquare className="w-3.5 h-3.5" />
             <span>{isClient ? "Hire / Invite" : "Message"}</span>
@@ -250,8 +251,8 @@ export const DeveloperCard = ({
 
       {/* Real Invite & Proposal Modal */}
       {isInviteOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-lg p-6 rounded-2xl bg-white dark:bg-cardDark border border-slate-200 dark:border-slate-800 shadow-2xl relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg p-4 sm:p-6 rounded-2xl bg-white dark:bg-cardDark border border-slate-200 dark:border-slate-800 shadow-2xl relative">
             <button
               onClick={() => setIsInviteOpen(false)}
               className="absolute top-5 right-5 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-white"

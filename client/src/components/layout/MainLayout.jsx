@@ -21,10 +21,10 @@ export const MainLayout = () => {
     <div className={`bg-white mesh-gradient flex flex-col relative ${isMessages ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
       <Navbar />
       <div
-        className={`flex-1 w-full pt-16 md:pl-64 ${
+        className={`flex-1 w-full md:pl-64 ${
           isMessages
-            ? 'xl:pr-0 h-[calc(100vh-4rem)] overflow-hidden'
-            : 'xl:pr-80 min-h-[calc(100vh-4rem)]'
+            ? 'xl:pr-0 h-[calc(100vh-4rem)] mt-16 overflow-hidden flex flex-col'
+            : 'pt-16 xl:pr-80 min-h-[calc(100vh-4rem)]'
         }`}
       >
         <Sidebar />
@@ -32,7 +32,7 @@ export const MainLayout = () => {
         <main
           className={
             isMessages
-              ? 'p-0 m-0 w-full h-full overflow-hidden max-w-none'
+              ? 'p-0 m-0 w-full h-full overflow-hidden flex flex-col'
               : 'p-4 md:p-7 pb-24 lg:pb-10 max-w-7xl w-full mx-auto'
           }
         >

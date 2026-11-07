@@ -45,11 +45,12 @@ import {
   BarChart3,
   Flame,
 } from "lucide-react";
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { dashboardService } from "../services/dashboardService";
 import { projectService } from "../services/projectService";
 import { communityService } from "../services/communityService";
 import { PostCard } from "../components/community/PostCard";
+import { IdeaPitchModal } from "../components/community/IdeaPitchModal";
 import { useAuthStore, useUIStore } from "../store";
 import { PRE_LAUNCH_CONFIG } from "../utils/preLaunchConfig";
 
@@ -62,6 +63,7 @@ export const DashboardPage = () => {
   }
   const activeModal = useUIStore((state) => state.activeModal);
   const closeModal = useUIStore((state) => state.closeModal);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [summaryData, setSummaryData] = useState(null);
   const [analyticsData, setAnalyticsData] = useState(null);
   const [projects, setProjects] = useState([]);
@@ -89,18 +91,30 @@ export const DashboardPage = () => {
 
   // Idea Pitching Modal States
   const [showIdeaModal, setShowIdeaModal] = useState(false);
-  const [ideaTitle, setIdeaTitle] = useState("");
-  const [ideaContent, setIdeaContent] = useState("");
-  const [ideaTargetAudience, setIdeaTargetAudience] = useState("");
-  const [ideaBudget, setIdeaBudget] = useState("");
-  const [ideaRoles, setIdeaRoles] = useState([]);
-  const [ideaRoleInput, setIdeaRoleInput] = useState("");
-  const [ideaFeedbackPrompt, setIdeaFeedbackPrompt] = useState("");
-  const [ideaTags, setIdeaTags] = useState(["idea", "brainstorm"]);
-  const [ideaTagInput, setIdeaTagInput] = useState("");
-  const [submittingIdea, setSubmittingIdea] = useState(false);
-  const [ideaModalError, setIdeaModalError] = useState("");
-  const [ideaAttachments, setIdeaAttachments] = useState([]);
+
+  useEffect(() => {
+    if (searchParams.get("pitch") === "true") {
+      setShowIdeaModal(true);
+      searchParams.delete("pitch");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    const handleOpenIdeaModal = () => setShowIdeaModal(true);
+    window.addEventListener("devconnect:open-idea-modal", handleOpenIdeaModal);
+    return () => window.removeEventListener("devconnect:open-idea-modal", handleOpenIdeaModal);
+  }, []);
+
+  const handleIdeaCreated = (newIdea) => {
+    if (newIdea) {
+      setPosts((prev) => [newIdea, ...prev]);
+      setShowIdeaModal(false);
+      setIdeaSuccessToast("🎉 Your idea was successfully shared with the community! Fellow developers can now explore, review, and collaborate.");
+      setActiveTab("ideas");
+      setTimeout(() => setIdeaSuccessToast(""), 6000);
+    }
+  };
 
   const handleFileAttach = (e) => {
     const files = Array.from(e.target.files || []);
@@ -444,7 +458,7 @@ export const DashboardPage = () => {
     }
 
     const q = projectSearch.toLowerCase().trim();
-    return randomized.filter((item) => {
+    return sorted.filter((item) => {
       return (
         item.title.toLowerCase().includes(q) ||
         item.description.toLowerCase().includes(q) ||
@@ -488,62 +502,69 @@ export const DashboardPage = () => {
       {/* ========================================================================= */}
       {/* 2. LINKEDIN-STYLE QUICK PROJECT & POST LAUNCHER BAR */}
       {/* ========================================================================= */}
-      <Card className="glass-card p-4 border-slate-200/90 dark:border-slate-800/80">
-        <div className="flex items-center gap-3">
+      <Card className="glass-card p-3 sm:p-4 border-slate-200/90 dark:border-slate-800/80 shadow-xs">
+        <div className="flex items-center gap-2.5 sm:gap-3">
           <Avatar
             src={currentUser?.avatar || summaryData?.user?.avatar}
             name={displayName}
             size="md"
+            className="shrink-0"
           />
           <Link
             to="/projects/create"
-            className="flex-1 px-4 py-2.5 rounded-full bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium transition-colors flex items-center gap-2 border border-slate-200/80 dark:border-slate-700/80"
+            className="flex-1 min-w-0 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium transition-colors flex items-center gap-2 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs"
           >
-            <PlusCircle className="w-4 h-4 text-primary-500" />
-            <span>Have a project idea, open-source build, or seeking collaborators? Post a project...</span>
+            <PlusCircle className="w-4 h-4 text-primary-500 shrink-0" />
+            <span className="truncate sm:hidden text-xs">Have an idea or project? Post now...</span>
+            <span className="hidden sm:inline truncate">Have a project idea, open-source build, or seeking collaborators? Post a project...</span>
           </Link>
         </div>
 
-        <div className="flex items-center justify-around mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/80 text-xs">
+        {/* Action Buttons Row: Smooth horizontally scrollable chip pills on mobile, spread evenly on desktop */}
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto scrollbar-none touch-pan-x -mx-1 px-1 sm:mx-0 sm:px-0 sm:justify-around mt-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 text-xs">
           <button
             type="button"
             onClick={() => setShowIdeaModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 hover:text-amber-600 transition-colors font-bold"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 hover:text-amber-600 transition-colors font-bold shrink-0 whitespace-nowrap bg-amber-50/70 dark:bg-amber-950/30 sm:bg-transparent border border-amber-200/60 dark:border-amber-900/40 sm:border-transparent"
           >
-            <Lightbulb className="w-4 h-4 text-amber-500" />
-            <span>Post Your Idea</span>
+            <Lightbulb className="w-4 h-4 text-amber-500 shrink-0" />
+            <span className="sm:hidden text-[11px]">Post Idea</span>
+            <span className="hidden sm:inline">Post Your Idea</span>
           </button>
 
           <Link
             to="/projects/create"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-primary-500/10 hover:text-primary-500 transition-colors font-semibold"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-primary-500/10 hover:text-primary-500 transition-colors font-semibold shrink-0 whitespace-nowrap bg-slate-50 dark:bg-slate-800/60 sm:bg-transparent border border-slate-200/60 dark:border-slate-700/60 sm:border-transparent"
           >
-            <FolderGit2 className="w-4 h-4 text-primary-500" />
-            <span>Post Project</span>
+            <FolderGit2 className="w-4 h-4 text-primary-500 shrink-0" />
+            <span className="sm:hidden text-[11px]">Post Project</span>
+            <span className="hidden sm:inline">Post Project</span>
           </Link>
 
           <Link
             to="/discover-projects"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-accent-500/10 hover:text-accent-500 transition-colors font-semibold"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-accent-500/10 hover:text-accent-500 transition-colors font-semibold shrink-0 whitespace-nowrap bg-slate-50 dark:bg-slate-800/60 sm:bg-transparent border border-slate-200/60 dark:border-slate-700/60 sm:border-transparent"
           >
-            <Sparkles className="w-4 h-4 text-accent-500" />
-            <span>Discover Ideas</span>
+            <Sparkles className="w-4 h-4 text-accent-500 shrink-0" />
+            <span className="sm:hidden text-[11px]">Discover</span>
+            <span className="hidden sm:inline">Discover Ideas</span>
           </Link>
 
           <Link
             to="/developers"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-emerald-500/10 hover:text-emerald-500 transition-colors font-semibold"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-emerald-500/10 hover:text-emerald-500 transition-colors font-semibold shrink-0 whitespace-nowrap bg-slate-50 dark:bg-slate-800/60 sm:bg-transparent border border-slate-200/60 dark:border-slate-700/60 sm:border-transparent"
           >
-            <Users className="w-4 h-4 text-emerald-500" />
-            <span>Find Collaborators</span>
+            <Users className="w-4 h-4 text-emerald-500 shrink-0" />
+            <span className="sm:hidden text-[11px]">Collaborators</span>
+            <span className="hidden sm:inline">Find Collaborators</span>
           </Link>
 
           <Link
             to="/communities"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-indigo-500/10 hover:text-indigo-500 transition-colors font-semibold"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-indigo-500/10 hover:text-indigo-500 transition-colors font-semibold shrink-0 whitespace-nowrap bg-slate-50 dark:bg-slate-800/60 sm:bg-transparent border border-slate-200/60 dark:border-slate-700/60 sm:border-transparent"
           >
-            <Compass className="w-4 h-4 text-indigo-500" />
-            <span>Tech Hubs</span>
+            <Compass className="w-4 h-4 text-indigo-500 shrink-0" />
+            <span className="text-[11px] sm:text-xs">Tech Hubs</span>
           </Link>
         </div>
       </Card>
@@ -589,7 +610,7 @@ export const DashboardPage = () => {
 
                 {/* Mixed Stream Grid: Interleaved Projects & Idea Pitches */}
                 {mixedFeed.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
                     {mixedFeed.map((item) => {
                       if (item.feedType === "idea") {
                         return (
@@ -732,7 +753,7 @@ export const DashboardPage = () => {
 
                 {/* Ideas Feed */}
                 {ideaPosts.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start pt-2">
                     {ideaPosts.map((idea) => (
                       <IdeaCard
                         key={idea._id || idea.id}
@@ -874,7 +895,7 @@ export const DashboardPage = () => {
                     <p className="text-xs text-slate-400">Loading your post analytics & history...</p>
                   </div>
                 ) : myHistoryData?.posts && myHistoryData.posts.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-1">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start pt-1">
                     {myHistoryData.posts.map((post) => (
                       <IdeaCard
                         key={post._id || post.id}
@@ -1421,219 +1442,16 @@ export const DashboardPage = () => {
       )}
 
       {/* ========================================================================= */}
-      {/* POST YOUR IDEA MODAL */}
+      {/* STANDARDIZED IDEA PITCH MODAL */}
       {/* ========================================================================= */}
-      {(showIdeaModal || activeModal === "idea_modal") && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-2xl max-h-[85vh] overflow-y-auto scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden p-6 rounded-3custom bg-white dark:bg-cardDark border border-slate-200 dark:border-slate-800 shadow-2xl relative space-y-5">
-            <button
-              type="button"
-              onClick={() => { setShowIdeaModal(false); closeModal(); }}
-              className="absolute top-5 right-5 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-white"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            {/* Modal Header */}
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/25">
-                <Lightbulb className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">
-                  Post Your Project Idea & Pitch
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Share your raw concept with the DevConnect community to get feedback, review feasibility, and find co-builders.
-                </p>
-              </div>
-            </div>
-
-            {ideaModalError && (
-              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-xs text-rose-600 dark:text-rose-400 font-semibold">
-                {ideaModalError}
-              </div>
-            )}
-
-            <form onSubmit={handlePublishIdea} className="space-y-4">
-              {/* Title */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Idea Title <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. AI-Powered Freelance Invoicing & Tax Estimator"
-                  value={ideaTitle}
-                  onChange={(e) => setIdeaTitle(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
-
-              {/* Content */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Explain Your Idea & Problem Solved <span className="text-rose-500">*</span>
-                </label>
-                <textarea
-                  required
-                  rows={4}
-                  placeholder="What is the concept? What pain point does it solve? What features should it have? Invite developers to review and share thoughts..."
-                  value={ideaContent}
-                  onChange={(e) => setIdeaContent(e.target.value)}
-                  className="w-full p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-y"
-                />
-              </div>
-
-              {/* Document / Mockup / Image Attachments (Replaces Budget, Audience, Roles) */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <Paperclip className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Attach Documents or Mockups (Optional)</span>
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-normal">PDF, DOC, DOCX, PNG, JPG (Max 5 files)</span>
-                </label>
-
-                {/* Upload Dropzone Button */}
-                <label className="flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-amber-400 bg-slate-50/70 dark:bg-slate-800/50 cursor-pointer transition-colors text-xs text-slate-600 dark:text-slate-400 font-medium">
-                  <UploadCloud className="w-4 h-4 text-amber-500" />
-                  <span>Upload specification documents, PDF proposals, or design mockups</span>
-                  <input
-                    type="file"
-                    multiple
-                    accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.webp"
-                    onChange={handleFileAttach}
-                    className="hidden"
-                  />
-                </label>
-
-                {/* Attachments Preview Grid */}
-                {ideaAttachments.length > 0 && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                    {ideaAttachments.map((file, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between p-2 rounded-xl bg-slate-100/90 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs"
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          {file.fileType === "image" ? (
-                            file.previewUrl ? (
-                              <img src={file.previewUrl} alt="preview" className="w-8 h-8 rounded-lg object-cover shrink-0" />
-                            ) : (
-                              <ImageIcon className="w-4 h-4 text-emerald-500 shrink-0" />
-                            )
-                          ) : (
-                            <FileText className="w-4 h-4 text-blue-500 shrink-0" />
-                          )}
-                          <div className="min-w-0">
-                            <p className="font-semibold text-slate-800 dark:text-slate-200 truncate text-[11px] max-w-[140px]">
-                              {file.name}
-                            </p>
-                            <span className="text-[10px] text-slate-400 uppercase font-mono">
-                              {file.fileType} • {(file.size / 1024).toFixed(0)} KB
-                            </span>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveAttachment(idx)}
-                          className="p-1 hover:text-rose-500 text-slate-400 transition-colors"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Feedback Questions */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  💡 What review or feedback do you want from developers? (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Would you use this? What tech stack would you recommend? Is scope realistic?"
-                  value={ideaFeedbackPrompt}
-                  onChange={(e) => setIdeaFeedbackPrompt(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
-
-              {/* Tags */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Tags (Optional)
-                </label>
-                <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                  {ideaTags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
-                    >
-                      #{tag}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveIdeaTag(tag)}
-                        className="hover:text-rose-500"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                {ideaTags.length < 5 && (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      placeholder="Add tag (e.g. ai, saas, mobile)..."
-                      value={ideaTagInput}
-                      onChange={(e) => setIdeaTagInput(e.target.value)}
-                      onKeyDown={handleAddIdeaTag}
-                      className="flex-1 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleAddIdeaTag}
-                      className="text-xs"
-                    >
-                      Add Tag
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              {/* Modal Footer Actions */}
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowIdeaModal(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="sm"
-                  disabled={submittingIdea || !ideaContent.trim()}
-                  isLoading={submittingIdea}
-                  className="gap-2 bg-gradient-to-r from-amber-500 via-orange-500 to-primary-600 hover:from-amber-600 hover:to-primary-700 text-white font-bold shadow-md shadow-amber-500/20"
-                >
-                  <Rocket className="w-4 h-4" />
-                  <span>Share Idea to Community</span>
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <IdeaPitchModal
+        isOpen={showIdeaModal || activeModal === "idea_modal"}
+        onClose={() => {
+          setShowIdeaModal(false);
+          closeModal();
+        }}
+        onIdeaCreated={handleIdeaCreated}
+      />
     </div>
   );
 };

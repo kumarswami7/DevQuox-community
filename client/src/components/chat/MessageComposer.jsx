@@ -5,19 +5,24 @@ import {
   Paperclip,
   Smile,
   Mic,
+  MicOff,
   X,
   FileText,
   Image as ImageIcon,
   Code2,
   Check,
+  Trash2,
+  CornerUpLeft,
 } from 'lucide-react';
+import { CodeSnippetModal } from './CodeSnippetModal';
 
-const COMMON_EMOJIS = [
-  '😀', '😂', '😍', '🙌', '👍', '👎', '❤️', '🔥',
-  '🚀', '🎉', '💡', '✨', '👏', '🙏', '💯', '😊',
-  '😎', '🤔', '👀', '💻', '⚡', '🛠️', '📦', '🎯',
-  '🏆', '🌟', '🤝', '💪', '🥳', '🤩', '👋', '☕',
-];
+const EMOJI_CATEGORIES = {
+  Recent: ['❤️', '🔥', '👍', '😂', '🚀', '✨', '👏', '🙏'],
+  Smileys: ['😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😋', '😎', '🥳', '🤔', '🤫', '🤗', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥'],
+  DevTech: ['💻', '⚡', '🛠️', '📦', '🎯', '🏆', '🌟', '🤝', '💪', '🚀', '🔥', '💡', '✨', '☕', '🧠', '🤖', '📊', '📈', '⚙️', '🔍', '📱', '🖥️', '⌨️', '🖱️', '🔌', '💾', '🛡️', '🔒'],
+  Gestures: ['👍', '👎', '👌', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '👇', '☝️', '✋', '🤚', '🖐️', '🖖', '👋', '🤝', '🙏', '👏', '🙌', '👐', '🤲'],
+  Objects: ['🎉', '🎊', '🎈', '🎁', '🏆', '🥇', '🥈', '🥉', '🏅', '🎯', '📌', '📍', '📝', '📄', '📁', '📂', '📑', '📊', '📋', '📅', '📆', '🔔', '📢', '📣'],
+};
 
 export const MessageComposer = ({
   onSendMessage,
@@ -32,16 +37,18 @@ export const MessageComposer = ({
   const [attachments, setAttachments] = useState([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
-  const [attachType, setAttachType] = useState(null); // 'url' | 'code' | null
-  const [attachUrl, setAttachUrl] = useState('');
-  const [attachName, setAttachName] = useState('');
-  const [codeSnippet, setCodeSnippet] = useState('');
-  const [codeLanguage, setCodeLanguage] = useState('javascript');
+  const [activeEmojiTab, setActiveEmojiTab] = useState('Recent');
+  const [showCodeModal, setShowCodeModal] = useState(false);
+
+  // Voice Note Recording State
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
 
   const textareaRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const emojiRef = useRef(null);
   const attachRef = useRef(null);
+  const recordingTimerRef = useRef(null);
 
   // Close menus on outside click
   useEffect(() => {
@@ -56,6 +63,19 @@ export const MessageComposer = ({
     document.addEventListener('mousedown', handleOutsideClick);
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
+
+  // Recording timer effect
+  useEffect(() => {
+    if (isRecordingVoice) {
+      setRecordingSeconds(0);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingSeconds((s) => s + 1);
+      }, 1000);
+    } else {
+      clearInterval(recordingTimerRef.current);
+    }
+    return () => clearInterval(recordingTimerRef.current);
+  }, [isRecordingVoice]);
 
   const handleInputChange = (e) => {
     const val = e.target.value;
@@ -81,124 +101,140 @@ export const MessageComposer = ({
     textareaRef.current?.focus();
   };
 
-  const handleAddUrlAttachment = (e) => {
-    e.preventDefault();
-    if (!attachUrl.trim()) return;
+  const handleStartVoiceRecording = () => {
+    setIsRecordingVoice(true);
+  };
 
-    const trimmedUrl = attachUrl.trim();
-    const fileName = attachName.trim() || trimmedUrl.split('/').pop() || 'Attachment';
-    let fileType = 'link';
-    if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(trimmedUrl)) fileType = 'image';
-    else if (/\.(pdf)$/i.test(trimmedUrl)) fileType = 'pdf';
-    else if (/\.(zip|tar|gz)$/i.test(trimmedUrl)) fileType = 'archive';
+  const handleCancelVoiceRecording = () => {
+    setIsRecordingVoice(false);
+    setRecordingSeconds(0);
+  };
 
-    setAttachments((prev) => [
-      ...prev,
-      {
-        url: trimmedUrl,
-        fileName,
-        fileType,
-        fileSize: 0,
+  const handleSendVoiceNote = () => {
+    const durationStr = `${Math.floor(recordingSeconds / 60)}:${(recordingSeconds % 60)
+      .toString()
+      .padStart(2, '0')}`;
+    
+    onSendMessage({
+      content: `🎙️ Voice Note (${durationStr})`,
+      messageType: 'audio',
+      voiceMetadata: {
+        duration: recordingSeconds || 5,
+        waveform: [30, 50, 75, 40, 90, 60, 80, 45, 70, 85, 40, 65, 50],
       },
-    ]);
+      replyTo: replyingTo?._id || replyingTo?.id,
+    });
 
-    setAttachUrl('');
-    setAttachName('');
-    setAttachType(null);
+    setIsRecordingVoice(false);
+    setRecordingSeconds(0);
+    if (onCancelReply) onCancelReply();
+  };
+
+  const handleSendCodeSnippet = (codeData) => {
+    onSendMessage({
+      content: `\`\`\`${codeData.language}\n${codeData.code}\n\`\`\``,
+      messageType: 'code',
+      codeSnippet: codeData.code,
+      codeLanguage: codeData.language,
+      replyTo: replyingTo?._id || replyingTo?.id,
+    });
+    if (onCancelReply) onCancelReply();
+  };
+
+  const handleFileUpload = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const fileUrl = reader.result;
+        setAttachments((prev) => [
+          ...prev,
+          {
+            url: fileUrl,
+            fileName: file.name,
+            fileType: file.type || 'file',
+            fileSize: file.size,
+          },
+        ]);
+      };
+      reader.readAsDataURL(file);
+    });
     setShowAttachMenu(false);
   };
 
-  const handleAddCodeSnippet = (e) => {
-    e.preventDefault();
-    if (!codeSnippet.trim()) return;
+  const handleSubmit = (e) => {
+    e?.preventDefault();
+    if ((!text.trim() && !attachments.length) || disabled || isSending) return;
 
-    // Append code snippet to message with markdown formatting
-    const formatted = `\`\`\`${codeLanguage}\n${codeSnippet.trim()}\n\`\`\``;
-    setText((prev) => (prev ? `${prev}\n${formatted}` : formatted));
-    setCodeSnippet('');
-    setAttachType(null);
-    setShowAttachMenu(false);
-    textareaRef.current?.focus();
-  };
+    onSendMessage({
+      content: text.trim(),
+      attachments,
+      replyTo: replyingTo?._id || replyingTo?.id,
+    });
 
-  const handleRemoveAttachment = (index) => {
-    setAttachments((prev) => prev.filter((_, idx) => idx !== index));
-  };
-
-  const handleSend = () => {
-    const trimmed = text.trim();
-    if ((!trimmed && attachments.length === 0) || disabled || isSending) return;
-
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-      typingTimeoutRef.current = null;
-      onTypingChange?.(false);
-    }
-
-    onSendMessage(trimmed, attachments);
     setText('');
     setAttachments([]);
     setShowEmojiPicker(false);
     setShowAttachMenu(false);
-    setAttachType(null);
-    onCancelReply?.();
+    if (onCancelReply) onCancelReply();
+    if (onTypingChange) onTypingChange(false);
   };
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      handleSubmit();
     }
   };
 
-  useEffect(() => {
-    return () => {
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const hasContent = text.trim().length > 0 || attachments.length > 0;
+  const formatSecs = (sec) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
 
   return (
-    <div className="relative border-t border-slate-200/90 dark:border-slate-800 bg-[#f0f2f5] dark:bg-[#202c33] transition-colors">
-      {/* WhatsApp Replying Preview Bar */}
+    <div className="shrink-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200/80 dark:border-slate-800/80 relative z-20">
+      {/* 1. WhatsApp Quoted Reply Preview Banner */}
       {replyingTo && (
-        <div className="p-2.5 px-4 bg-slate-100 dark:bg-[#182229] border-b border-slate-200 dark:border-slate-700/60 flex items-center justify-between text-xs animate-slide-up">
-          <div className="border-l-4 border-[#00a884] pl-2.5 min-w-0">
-            <p className="font-bold text-[#00a884] text-[11px]">
-              Replying to {replyingTo.sender?.name || 'Member'}
-            </p>
-            <p className="truncate text-slate-600 dark:text-slate-300 text-xs">
-              {replyingTo.content || replyingTo.text || 'Attachment'}
-            </p>
+        <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700/80 flex items-center justify-between gap-3 animate-slide-up">
+          <div className="flex items-center gap-2 min-w-0 border-l-4 border-primary-500 pl-2.5">
+            <CornerUpLeft className="w-3.5 h-3.5 text-primary-500 shrink-0" />
+            <div className="min-w-0">
+              <span className="text-[11px] font-bold text-primary-600 dark:text-primary-400 block truncate">
+                Replying to {replyingTo.sender?.name || 'Member'}
+              </span>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                {replyingTo.content || replyingTo.text || 'Attachment'}
+              </p>
+            </div>
           </div>
           <button
             type="button"
             onClick={onCancelReply}
-            className="p-1 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5"
+            className="p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-white"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
 
-      {/* Attachment Pills Preview */}
+      {/* 2. Attachments Previews Bar */}
       {attachments.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 p-2.5 pb-0">
+        <div className="px-4 py-2 bg-slate-50/80 dark:bg-slate-800/50 flex items-center gap-2 overflow-x-auto border-b border-slate-200/60 dark:border-slate-800">
           {attachments.map((att, idx) => (
             <div
               key={idx}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white dark:bg-[#2a3942] shadow-xs text-xs text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs text-xs"
             >
-              <FileText className="w-3.5 h-3.5 text-[#00a884] shrink-0" />
-              <span className="truncate max-w-[160px] font-medium">{att.fileName}</span>
+              <FileText className="w-3.5 h-3.5 text-primary-500 shrink-0" />
+              <span className="truncate max-w-[130px] font-medium">{att.fileName}</span>
               <button
                 type="button"
-                onClick={() => handleRemoveAttachment(idx)}
-                className="hover:text-rose-500 rounded p-0.5 ml-1"
-                title="Remove attachment"
+                onClick={() => setAttachments(attachments.filter((_, i) => i !== idx))}
+                className="p-0.5 hover:text-rose-500 text-slate-400 ml-1"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -207,244 +243,205 @@ export const MessageComposer = ({
         </div>
       )}
 
-      {/* Attachment Sub-Modals (URL or Code) */}
-      {attachType === 'url' && (
-        <form
-          onSubmit={handleAddUrlAttachment}
-          className="m-2.5 p-3 rounded-xl bg-white dark:bg-[#2a3942] shadow-md border border-slate-200 dark:border-slate-700 flex flex-wrap items-center gap-2 animate-fade-in"
-        >
-          <input
-            type="url"
-            required
-            placeholder="Document or file URL (https://...)"
-            value={attachUrl}
-            onChange={(e) => setAttachUrl(e.target.value)}
-            className="flex-1 min-w-[200px] px-3 py-1.5 text-xs rounded-lg bg-[#f0f2f5] dark:bg-[#182229] border border-slate-300 dark:border-slate-600 text-[#111b21] dark:text-white focus:outline-none focus:border-[#00a884]"
-          />
-          <input
-            type="text"
-            placeholder="Display name (optional)"
-            value={attachName}
-            onChange={(e) => setAttachName(e.target.value)}
-            className="w-40 px-3 py-1.5 text-xs rounded-lg bg-[#f0f2f5] dark:bg-[#182229] border border-slate-300 dark:border-slate-600 text-[#111b21] dark:text-white focus:outline-none focus:border-[#00a884]"
-          />
-          <div className="flex items-center gap-1.5">
-            <button
-              type="submit"
-              className="px-3 py-1.5 rounded-lg bg-[#00a884] hover:bg-[#008f6f] text-white text-xs font-bold shadow-xs"
-            >
-              Attach
-            </button>
-            <button
-              type="button"
-              onClick={() => setAttachType(null)}
-              className="px-2.5 py-1.5 rounded-lg text-xs text-slate-500 hover:text-slate-800 dark:hover:text-white"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      )}
-
-      {attachType === 'code' && (
-        <form
-          onSubmit={handleAddCodeSnippet}
-          className="m-2.5 p-3 rounded-xl bg-white dark:bg-[#2a3942] shadow-md border border-slate-200 dark:border-slate-700 space-y-2 animate-fade-in"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
-              <Code2 className="w-4 h-4 text-[#00a884]" />
-              <span>Insert Code Snippet</span>
+      {/* 3. Main Input Bar or Voice Recording Bar */}
+      {isRecordingVoice ? (
+        /* Voice Recording Mode Bar */
+        <div className="px-4 py-3 flex items-center justify-between gap-3 animate-fade-in bg-rose-50/80 dark:bg-rose-950/20">
+          <div className="flex items-center gap-3">
+            <span className="w-3 h-3 rounded-full bg-rose-500 animate-ping" />
+            <span className="text-xs font-mono font-bold text-rose-600 dark:text-rose-400">
+              Recording Voice Note {formatSecs(recordingSeconds)}
             </span>
-            <select
-              value={codeLanguage}
-              onChange={(e) => setCodeLanguage(e.target.value)}
-              className="px-2 py-1 text-xs rounded bg-[#f0f2f5] dark:bg-[#182229] border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-white focus:outline-none"
-            >
-              <option value="javascript">JavaScript</option>
-              <option value="python">Python</option>
-              <option value="html">HTML</option>
-              <option value="css">CSS</option>
-              <option value="sql">SQL</option>
-              <option value="json">JSON</option>
-            </select>
           </div>
-          <textarea
-            rows={4}
-            required
-            placeholder="Paste code snippet here..."
-            value={codeSnippet}
-            onChange={(e) => setCodeSnippet(e.target.value)}
-            className="w-full font-mono text-xs p-2 rounded-lg bg-[#f0f2f5] dark:bg-[#182229] border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-[#00a884]"
-          />
-          <div className="flex items-center justify-end gap-1.5">
+
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setAttachType(null)}
-              className="px-3 py-1.5 rounded-lg text-xs text-slate-500 hover:text-slate-800 dark:hover:text-white"
+              onClick={handleCancelVoiceRecording}
+              className="px-3 py-1.5 rounded-xl border border-rose-200 dark:border-rose-900/60 text-xs font-semibold text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-950/40 flex items-center gap-1.5 transition-colors"
             >
-              Cancel
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Cancel</span>
             </button>
             <button
-              type="submit"
-              className="px-3.5 py-1.5 rounded-lg bg-[#00a884] hover:bg-[#008f6f] text-white text-xs font-bold shadow-xs flex items-center gap-1"
+              type="button"
+              onClick={handleSendVoiceNote}
+              className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-primary-600/25 transition-transform active:scale-95"
             >
-              <Check className="w-3.5 h-3.5" />
-              <span>Insert Code</span>
+              <Send className="w-3.5 h-3.5" />
+              <span>Send Voice Note</span>
             </button>
           </div>
+        </div>
+      ) : (
+        /* Standard Message Typing Bar */
+        <form onSubmit={handleSubmit} className="p-3 sm:px-4 flex items-center gap-2">
+          {/* Emoji Picker Button */}
+          <div className="relative" ref={emojiRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setShowEmojiPicker((p) => !p);
+                setShowAttachMenu(false);
+              }}
+              className={`p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${
+                showEmojiPicker ? 'text-primary-500' : 'text-slate-500 dark:text-slate-400'
+              }`}
+              title="Insert Emoji"
+            >
+              <Smile className="w-5 h-5" />
+            </button>
+
+            {/* Categorized WhatsApp Emoji Drawer */}
+            {showEmojiPicker && (
+              <div className="absolute bottom-12 left-0 z-40 w-72 sm:w-80 rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 p-3 space-y-2.5 animate-scale-in">
+                {/* Tabs */}
+                <div className="flex items-center gap-1 border-b border-slate-100 dark:border-slate-800 pb-1.5 overflow-x-auto text-[11px] font-bold">
+                  {Object.keys(EMOJI_CATEGORIES).map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setActiveEmojiTab(cat)}
+                      className={`px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap ${
+                        activeEmojiTab === cat
+                          ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white font-bold shadow-xs'
+                          : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Emojis Grid */}
+                <div className="grid grid-cols-8 gap-1 max-h-48 overflow-y-auto p-1 scrollbar-thin">
+                  {EMOJI_CATEGORIES[activeEmojiTab].map((emoji, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleAddEmoji(emoji)}
+                      className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-base hover:scale-125 transition-transform"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Attachments Button */}
+          <div className="relative" ref={attachRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setShowAttachMenu((p) => !p);
+                setShowEmojiPicker(false);
+              }}
+              className={`p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${
+                showAttachMenu ? 'text-primary-500' : 'text-slate-500 dark:text-slate-400'
+              }`}
+              title="Attach media, code or documents"
+            >
+              <Paperclip className="w-5 h-5" />
+            </button>
+
+            {/* WhatsApp Attach Menu */}
+            {showAttachMenu && (
+              <div className="absolute bottom-12 left-0 z-40 w-52 rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 p-2 space-y-1 animate-scale-in text-xs font-semibold text-slate-700 dark:text-slate-200">
+                <label className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors">
+                  <div className="p-1.5 rounded-lg bg-primary-500/10 text-primary-600 dark:text-primary-400">
+                    <ImageIcon className="w-4 h-4" />
+                  </div>
+                  <span>Photos & Images</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                </label>
+
+                <label className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors">
+                  <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-500">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <span>Document or PDF</span>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.txt,.zip,.json"
+                    multiple
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAttachMenu(false);
+                    setShowCodeModal(true);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-left transition-colors"
+                >
+                  <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-500">
+                    <Code2 className="w-4 h-4" />
+                  </div>
+                  <span>Share Code Snippet</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Textarea Input */}
+          <div className="flex-1 min-w-0">
+            <textarea
+              ref={textareaRef}
+              rows={1}
+              value={text}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              disabled={disabled || isSending}
+              className="w-full px-4 py-2.5 text-xs sm:text-sm rounded-2xl bg-slate-100/90 dark:bg-slate-800/80 text-slate-900 dark:text-white placeholder-slate-400 border border-slate-200/60 dark:border-slate-700/60 focus:outline-none focus:ring-2 focus:ring-primary-500/30 resize-none max-h-28 transition-all"
+            />
+          </div>
+
+          {/* Right Action: Send Button OR Voice Note Button */}
+          {text.trim() || attachments.length > 0 ? (
+            <button
+              type="submit"
+              disabled={disabled || isSending}
+              className="w-10 h-10 rounded-full bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white flex items-center justify-center transition-transform active:scale-90 shadow-md shadow-primary-600/30 shrink-0"
+              title="Send Message (Enter)"
+            >
+              {isSending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4 ml-0.5" />
+              )}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleStartVoiceRecording}
+              className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-primary-50 dark:hover:bg-primary-950/40 text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 flex items-center justify-center transition-all shadow-xs shrink-0"
+              title="Record Voice Note"
+            >
+              <Mic className="w-4 h-4" />
+            </button>
+          )}
         </form>
       )}
 
-      {/* Main WhatsApp Composer Row */}
-      <div className="flex items-center gap-2 p-2.5 sm:px-4">
-        {/* Left Action: Emoji Picker Toggle */}
-        <div className="relative" ref={emojiRef}>
-          <button
-            type="button"
-            onClick={() => {
-              setShowEmojiPicker((prev) => !prev);
-              setShowAttachMenu(false);
-            }}
-            className={`p-2 rounded-full transition-colors ${
-              showEmojiPicker
-                ? 'text-[#00a884] bg-black/5 dark:bg-white/5'
-                : 'text-slate-500 dark:text-[#8696a0] hover:text-[#00a884]'
-            }`}
-            title="Emoji drawer"
-            aria-label="Emoji drawer"
-          >
-            <Smile className="w-5 h-5" />
-          </button>
-
-          {/* WhatsApp Style Emoji Drawer Popup */}
-          {showEmojiPicker && (
-            <div className="absolute bottom-12 left-0 z-40 w-64 p-3 rounded-2xl bg-white dark:bg-[#233138] shadow-2xl border border-slate-200 dark:border-slate-700 animate-scale-in">
-              <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider">
-                Quick Reactions & Emojis
-              </p>
-              <div className="grid grid-cols-8 gap-1.5 text-lg">
-                {COMMON_EMOJIS.map((emoji) => (
-                  <button
-                    key={emoji}
-                    type="button"
-                    onClick={() => handleAddEmoji(emoji)}
-                    className="p-1 hover:bg-slate-100 dark:hover:bg-[#182229] rounded-lg transition-transform hover:scale-125"
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Left Action: Paperclip Attachment Toggle */}
-        <div className="relative" ref={attachRef}>
-          <button
-            type="button"
-            onClick={() => {
-              setShowAttachMenu((prev) => !prev);
-              setShowEmojiPicker(false);
-            }}
-            className={`p-2 rounded-full transition-colors ${
-              showAttachMenu || attachments.length > 0
-                ? 'text-[#00a884] bg-black/5 dark:bg-white/5'
-                : 'text-slate-500 dark:text-[#8696a0] hover:text-[#00a884]'
-            }`}
-            title="Attach file or code"
-            aria-label="Attach file or code"
-          >
-            <Paperclip className="w-5 h-5 rotate-45" />
-          </button>
-
-          {/* WhatsApp Style Attachment Circle Menu */}
-          {showAttachMenu && (
-            <div className="absolute bottom-12 left-0 z-40 w-48 py-2 rounded-2xl bg-white dark:bg-[#233138] shadow-2xl border border-slate-200 dark:border-slate-700 animate-scale-in space-y-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setAttachType('url');
-                  setShowAttachMenu(false);
-                }}
-                className="w-full px-3 py-2 flex items-center gap-3 hover:bg-slate-100 dark:hover:bg-[#182229] text-xs font-semibold text-slate-700 dark:text-slate-200 transition-colors"
-              >
-                <div className="w-7 h-7 rounded-full bg-indigo-500 text-white flex items-center justify-center shrink-0">
-                  <FileText className="w-4 h-4" />
-                </div>
-                <span>Document / URL</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setAttachType('code');
-                  setShowAttachMenu(false);
-                }}
-                className="w-full px-3 py-2 flex items-center gap-3 hover:bg-slate-100 dark:hover:bg-[#182229] text-xs font-semibold text-slate-700 dark:text-slate-200 transition-colors"
-              >
-                <div className="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
-                  <Code2 className="w-4 h-4" />
-                </div>
-                <span>Code Snippet</span>
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* WhatsApp Pill Input Textarea */}
-        <div className="flex-1 relative">
-          <textarea
-            ref={textareaRef}
-            value={text}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            disabled={disabled}
-            rows={1}
-            className="w-full resize-none max-h-32 min-h-[40px] px-4 py-2.5 text-sm rounded-lg bg-white dark:bg-[#2a3942] text-[#111b21] dark:text-[#e9edef] placeholder-[#8696a0] border-none focus:outline-none focus:ring-1 focus:ring-[#00a884] shadow-xs leading-normal"
-          />
-        </div>
-
-        {/* Right Button: Mic when empty, WhatsApp Emerald Send when filled */}
-        {hasContent ? (
-          <button
-            type="button"
-            onClick={handleSend}
-            disabled={disabled || isSending}
-            className="w-10 h-10 rounded-full bg-[#00a884] hover:bg-[#008f6f] active:scale-95 text-white flex items-center justify-center shadow-md transition-all shrink-0"
-            title="Send message"
-            aria-label="Send message"
-          >
-            {isSending ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4 ml-0.5" />
-            )}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => {
-              // Subtle prompt for voice notes
-              alert('Voice notes are simulated. Type your text message or attach a link to send!');
-            }}
-            className="w-10 h-10 rounded-full text-slate-500 dark:text-[#8696a0] hover:text-[#00a884] hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center transition-colors shrink-0"
-            title="Voice note"
-            aria-label="Voice note"
-          >
-            <Mic className="w-5 h-5" />
-          </button>
-        )}
-      </div>
-
-      {/* Character limit counter if lengthy */}
-      {text.length > 3000 && (
-        <div className="px-4 pb-1 flex justify-end text-[10px]">
-          <span className={text.length > 3900 ? 'text-rose-500 font-bold' : 'text-amber-500 font-medium'}>
-            {text.length}/4000
-          </span>
-        </div>
+      {/* Code Snippet Modal */}
+      {showCodeModal && (
+        <CodeSnippetModal
+          isOpen={showCodeModal}
+          onClose={() => setShowCodeModal(false)}
+          onSendCode={handleSendCodeSnippet}
+        />
       )}
     </div>
   );

@@ -26,6 +26,7 @@ import {
 import { Card } from "../ui/Card";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
+import { TechnologyIcon } from "../skills/TechnologyIcon";
 
 // =============================================================================
 // 1. FULL POSTS & PROJECTS HISTORY COMPONENT
@@ -310,6 +311,7 @@ export const ProfileHistorySection = ({
                 {userProjects.map((p) => {
                   const pId = p._id || p.id;
                   const status = p.status || "open";
+                  const pSkills = Array.isArray(p.requiredSkills || p.skills) ? (p.requiredSkills || p.skills) : [];
                   return (
                     <div
                       key={pId}
@@ -322,18 +324,18 @@ export const ProfileHistorySection = ({
                               {p.title}
                             </h4>
                           </Link>
-                          <Badge
-                            variant={
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
                               status === "completed"
-                                ? "success"
+                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
                                 : status === "in_progress"
-                                ? "accent"
-                                : "primary"
-                            }
-                            className="text-[10px] uppercase font-bold shrink-0"
+                                ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20"
+                                : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                            }`}
                           >
-                            {status === "open" ? "Open for Proposals" : status.replace("_", " ")}
-                          </Badge>
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <span>{status === "open" ? "Applications Open" : status.replace("_", " ")}</span>
+                          </span>
                         </div>
                         <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
                           {p.description}
@@ -341,34 +343,43 @@ export const ProfileHistorySection = ({
                       </div>
 
                       <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                        <div className="flex flex-wrap items-center justify-between text-xs text-slate-500 gap-2">
-                          <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                            <DollarSign className="w-3.5 h-3.5" />
-                            <span>
-                              {p.budget
-                                ? `$${p.budget.toLocaleString()}`
-                                : p.budgetMin && p.budgetMax
-                                ? `$${p.budgetMin.toLocaleString()} - $${p.budgetMax.toLocaleString()}`
-                                : "Negotiable"}
-                            </span>
-                          </span>
-                          <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                            <Users className="w-3.5 h-3.5 text-slate-400" />
-                            <span>{p.acceptedApplicantsCount || 0} members • {p.applicantsCount || 0} proposals</span>
-                          </span>
+                        {/* Metadata Grid */}
+                        <div className="grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-slate-50/80 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800 text-xs">
+                          <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                            <Briefcase className="w-3.5 h-3.5 text-primary-500 shrink-0" />
+                            <span className="truncate font-semibold">{p.category || "Community Project"}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+                            <Clock className="w-3.5 h-3.5 text-primary-500 shrink-0" />
+                            <span className="truncate">{p.duration || "1 - 2 Months"}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+                            <Users className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                            <span className="truncate">{p.acceptedApplicantsCount || 0}/{p.teamSize || 1} seats filled</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+                            <span className="text-amber-500 font-bold text-xs">★</span>
+                            <span className="truncate capitalize">{p.experienceLevel || "All Levels"}</span>
+                          </div>
                         </div>
 
-                        {/* Skills */}
-                        {Array.isArray(p.requiredSkills || p.skills) && (p.requiredSkills || p.skills).length > 0 && (
+                        {/* Skills Badges with Technology Icons */}
+                        {pSkills.length > 0 && (
                           <div className="flex flex-wrap gap-1.5">
-                            {(p.requiredSkills || p.skills).slice(0, 4).map((sk, idx) => (
+                            {pSkills.slice(0, 5).map((sk, idx) => (
                               <span
                                 key={idx}
-                                className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60"
                               >
-                                {sk}
+                                <TechnologyIcon name={sk} size="xs" />
+                                <span>{sk}</span>
                               </span>
                             ))}
+                            {pSkills.length > 5 && (
+                              <span className="px-1.5 py-0.5 rounded-lg text-[10px] font-semibold text-slate-400 self-center">
+                                +{pSkills.length - 5} more
+                              </span>
+                            )}
                           </div>
                         )}
 
@@ -384,27 +395,24 @@ export const ProfileHistorySection = ({
                                 type: "project",
                               })
                             }
-                            className="text-slate-400 hover:text-primary-500 transition-colors p-1 rounded-lg"
+                            className="text-slate-400 hover:text-primary-500 transition-colors p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
                             title="Share Project"
                           >
-                            <Share2 className="w-3.5 h-3.5" />
+                            <Share2 className="w-4 h-4" />
                           </button>
 
                           <div className="flex items-center gap-2">
                             {isOwnProfile && (
-                              <Link
-                                to={`/projects/${pId}/workspace`}
-                                className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
-                              >
-                                <span>Workspace</span>
+                              <Link to={`/projects/${pId}/workspace`}>
+                                <Button size="sm" variant="primary" className="text-xs h-8 font-bold gap-1 shadow-sm">
+                                  <span>Workspace</span>
+                                </Button>
                               </Link>
                             )}
-                            <Link
-                              to={`/projects/${pId}`}
-                              className="text-xs font-bold text-primary-600 hover:underline flex items-center gap-1"
-                            >
-                              <span>View Details</span>
-                              <ExternalLink className="w-3 h-3" />
+                            <Link to={`/projects/${pId}`}>
+                              <Button size="sm" variant="outline" className="text-xs h-8">
+                                <span>Details</span>
+                              </Button>
                             </Link>
                           </div>
                         </div>
@@ -649,23 +657,37 @@ export const ProfileHistorySection = ({
                     >
                       <div className="space-y-2">
                         <div className="flex items-start justify-between gap-2">
-                          <Link to={`/projects/${projId}`} className="group-hover:text-blue-600 transition-colors">
+                          <Link to={`/projects/${projId}`} className="group-hover:text-primary-600 transition-colors">
                             <h4 className="text-sm font-bold text-slate-900 dark:text-white line-clamp-1">
                               {proj.title || "Software Project Proposal"}
                             </h4>
                           </Link>
-                          <Badge
-                            variant={
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
                               status === "accepted"
-                                ? "success"
+                                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20"
                                 : status === "rejected"
-                                ? "danger"
-                                : "warning"
-                            }
-                            className="text-[10px] uppercase font-bold shrink-0 capitalize"
+                                ? "bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20"
+                                : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20"
+                            }`}
                           >
-                            {status === "accepted" ? "Accepted into Team" : status}
-                          </Badge>
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                status === "accepted"
+                                  ? "bg-emerald-500"
+                                  : status === "rejected"
+                                  ? "bg-rose-500"
+                                  : "bg-amber-500 animate-pulse"
+                              }`}
+                            />
+                            <span>
+                              {status === "accepted"
+                                ? "Accepted into Team"
+                                : status === "rejected"
+                                ? "Declined"
+                                : "Under Review"}
+                            </span>
+                          </span>
                         </div>
                         {app.coverLetter && (
                           <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed italic">
@@ -676,11 +698,15 @@ export const ProfileHistorySection = ({
 
                       <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
                         <div className="flex items-center justify-between text-slate-500">
-                          <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                            Proposed: {app.proposedRate ? `$${app.proposedRate}` : "Standard budget"}
+                          <span className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                            <Briefcase className="w-3.5 h-3.5 text-primary-500" />
+                            <span>{app.role || proj.category || "Contributor"}</span>
                           </span>
                           <span className="text-[11px] text-slate-400">
-                            {new Date(app.createdAt || Date.now()).toLocaleDateString()}
+                            {new Date(app.createdAt || Date.now()).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                            })}
                           </span>
                         </div>
 
@@ -690,10 +716,10 @@ export const ProfileHistorySection = ({
                               to={`/messages?projectId=${projId}`}
                               className="text-xs font-bold text-emerald-600 hover:underline flex items-center gap-1"
                             >
-                              <span>Project Team Chat ↗</span>
+                              <span>Team Chat ↗</span>
                             </Link>
                           ) : (
-                            <span className="text-[11px] text-slate-400">Awaiting client decision</span>
+                            <span className="text-[11px] text-slate-400">Awaiting project lead review</span>
                           )}
 
                           <Link

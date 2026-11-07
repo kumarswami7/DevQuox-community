@@ -1,7 +1,9 @@
 import mongoose from 'mongoose';
 
 const VALID_APPLICATION_STATUS_TRANSITIONS = {
-  pending: ['accepted', 'rejected', 'withdrawn'],
+  pending: ['under_review', 'shortlisted', 'accepted', 'rejected', 'withdrawn'],
+  under_review: ['shortlisted', 'accepted', 'rejected', 'withdrawn'],
+  shortlisted: ['accepted', 'rejected', 'withdrawn'],
   accepted: ['withdrawn'],
   rejected: [],
   withdrawn: [],
@@ -41,9 +43,51 @@ const applicationSchema = new mongoose.Schema(
       maxlength: [100, 'Proposed rate cannot exceed 100 characters'],
       default: '',
     },
+    rateType: {
+      type: String,
+      enum: ['fixed', 'hourly', 'per_milestone'],
+      default: 'fixed',
+    },
+    estimatedDuration: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    relevantRole: {
+      type: String,
+      trim: true,
+      default: 'Developer',
+    },
+    relevantSkills: {
+      type: [String],
+      default: [],
+    },
+    portfolioLinks: {
+      type: [String],
+      default: [],
+    },
+    relevantExperience: {
+      type: String,
+      trim: true,
+      maxlength: [2000, 'Experience summary cannot exceed 2000 characters'],
+      default: '',
+    },
+    availability: {
+      type: String,
+      trim: true,
+      default: 'immediate',
+    },
+    proposalAttachments: [
+      {
+        name: { type: String, trim: true },
+        url: { type: String, trim: true },
+        size: { type: Number, default: 0 },
+        type: { type: String, default: '' },
+      },
+    ],
     status: {
       type: String,
-      enum: ['pending', 'accepted', 'rejected', 'withdrawn'],
+      enum: ['pending', 'under_review', 'shortlisted', 'accepted', 'rejected', 'withdrawn'],
       default: 'pending',
       index: true,
     },
@@ -52,6 +96,21 @@ const applicationSchema = new mongoose.Schema(
       trim: true,
       maxlength: [1000, 'Decision notes cannot exceed 1000 characters'],
       default: '',
+    },
+    underReviewAt: {
+      type: Date,
+    },
+    shortlistedAt: {
+      type: Date,
+    },
+    acceptedAt: {
+      type: Date,
+    },
+    rejectedAt: {
+      type: Date,
+    },
+    withdrawnAt: {
+      type: Date,
     },
     reviewedAt: {
       type: Date,

@@ -5,7 +5,7 @@ export const DeveloperSearchBar = ({
   searchQuery,
   onSearchChange,
   onClear,
-  placeholder = "Search developers by name, headline, bio, or role...",
+  placeholder = "Search engineers by name, skill, headline, or role...",
   className = "",
 }) => {
   return (
@@ -16,13 +16,13 @@ export const DeveloperSearchBar = ({
         value={searchQuery}
         onChange={(e) => onSearchChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full pl-10 pr-9 py-2.5 text-xs rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-primary-500 transition-colors shadow-inner"
+        className="w-full pl-10 pr-9 py-2 sm:py-2.5 text-xs rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-primary-500 transition-colors shadow-inner"
       />
       {searchQuery && (
         <button
           type="button"
           onClick={onClear}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white p-1"
         >
           <X className="w-3.5 h-3.5" />
         </button>

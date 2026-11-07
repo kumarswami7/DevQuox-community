@@ -69,4 +69,21 @@ describe('Project & Application Models Unit Tests', () => {
     app.status = 'rejected';
     assert.equal(app.canTransitionTo('accepted'), false);
   });
+
+  test('Project schema validates applicationStatus enum and defaults to open', () => {
+    const defaultProject = new Project({
+      title: 'Valid Project Title',
+      description: 'Valid project description for testing',
+      owner: dummyUserId,
+    });
+    assert.equal(defaultProject.applicationStatus, 'open');
+
+    defaultProject.applicationStatus = 'closed';
+    assert.equal(defaultProject.validateSync(), undefined);
+
+    defaultProject.applicationStatus = 'invalid_status';
+    const err = defaultProject.validateSync();
+    assert.ok(err);
+    assert.ok(err.errors.applicationStatus);
+  });
 });

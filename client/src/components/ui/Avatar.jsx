@@ -24,17 +24,17 @@ export const Avatar = ({
   const dimensionClass = size === "full" ? "w-full h-full" : sizes[size] || sizes.md;
 
   return (
-    <div className={cn("relative inline-block flex-shrink-0", size === "full" && "w-full h-full", className)}>
+    <div className={cn("relative inline-block shrink-0 aspect-square", size === "full" && "w-full h-full", className)}>
       {src ? (
         <img
           src={src}
           alt={alt}
-          className={cn("rounded-full object-cover border-2 border-white dark:border-slate-800 shadow-sm", dimensionClass)}
+          className={cn("rounded-full aspect-square object-cover border-2 border-white dark:border-slate-800 shadow-sm shrink-0", dimensionClass)}
         />
       ) : (
         <div
           className={cn(
-            "rounded-full bg-primary-600 text-white font-bold flex items-center justify-center border-2 border-white dark:border-slate-800 shadow-sm",
+            "rounded-full aspect-square bg-primary-600 text-white font-bold flex items-center justify-center border-2 border-white dark:border-slate-800 shadow-sm shrink-0",
             dimensionClass
           )}
         >

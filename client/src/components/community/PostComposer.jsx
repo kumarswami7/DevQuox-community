@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Button } from "../ui/Button";
 import { communityService } from "../../services/communityService";
+import { IDEA_CATEGORIES } from "./IdeaPitchModal";
 const POST_TYPES = [
   {
     type: "idea",
@@ -82,8 +83,8 @@ export const PostComposer = ({ onPostCreated, onCancel }) => {
   const [showLinkInput, setShowLinkInput] = useState(false);
 
   // Dedicated Idea Pitch Fields
+  const [ideaCategory, setIdeaCategory] = useState("Web Development");
   const [targetAudience, setTargetAudience] = useState("");
-  const [estimatedBudget, setEstimatedBudget] = useState("");
   const [rolesNeeded, setRolesNeeded] = useState([]);
   const [roleInput, setRoleInput] = useState("");
   const [feedbackPrompt, setFeedbackPrompt] = useState("");
@@ -128,8 +129,8 @@ export const PostComposer = ({ onPostCreated, onCancel }) => {
       const mediaUrls = mediaUrl.trim() ? [mediaUrl.trim()] : [];
       const links = linkUrl.trim() ? [{ title: linkTitle.trim() || "Reference Link", url: linkUrl.trim() }] : [];
       const ideaDetails = postType === "idea" ? {
-        targetAudience: targetAudience.trim(),
-        estimatedBudget: estimatedBudget.trim(),
+        category: ideaCategory,
+        targetAudience: targetAudience.trim() || undefined,
         rolesNeeded,
         feedbackQuestions: feedbackPrompt.trim() ? [feedbackPrompt.trim()] : [],
         status: "seeking_feedback",
@@ -140,6 +141,7 @@ export const PostComposer = ({ onPostCreated, onCancel }) => {
         title: title.trim() || void 0,
         content: content.trim(),
         tags,
+        category: postType === "idea" ? ideaCategory : undefined,
         mediaUrls,
         links,
         ideaDetails,
@@ -226,6 +228,24 @@ export const PostComposer = ({ onPostCreated, onCancel }) => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Category */}
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              🏷️ Category / Domain
+            </label>
+            <select
+              value={ideaCategory}
+              onChange={(e) => setIdeaCategory(e.target.value)}
+              className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-amber-500"
+            >
+              {IDEA_CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Target Audience */}
           <div>
             <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -236,20 +256,6 @@ export const PostComposer = ({ onPostCreated, onCancel }) => {
               placeholder="e.g. Freelancers, students, remote teams"
               value={targetAudience}
               onChange={(e) => setTargetAudience(e.target.value)}
-              className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-amber-500"
-            />
-          </div>
-
-          {/* Estimated Budget / Funding */}
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              💰 Estimated Budget / Compensation (Optional)
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. $500 - $1,500, or Free / Open Source"
-              value={estimatedBudget}
-              onChange={(e) => setEstimatedBudget(e.target.value)}
               className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-amber-500"
             />
           </div>

@@ -28,17 +28,28 @@ export const projectRouter = express.Router();
 
 const ALLOWED_PROJECT_FIELDS = [
   'title',
+  'slug',
+  'summary',
   'description',
+  'coverImage',
+  'attachments',
+  'technologies',
+  'requiredRoles',
   'category',
   'projectType',
   'experienceLevel',
   'teamSize',
   'budget',
+  'budgetType',
   'budgetMin',
   'budgetMax',
   'currency',
+  'paymentStructure',
+  'startDate',
   'duration',
   'commitment',
+  'workMode',
+  'collaborationPreferences',
   'visibility',
   'requiredSkills',
   'deadline',
@@ -46,6 +57,8 @@ const ALLOWED_PROJECT_FIELDS = [
   'githubRepoUrl',
   'liveDemoUrl',
   'status',
+  'applicationStatus',
+  'publishedAt',
 ];
 
 const ALLOWED_SORT_FIELDS = {
@@ -103,8 +116,10 @@ projectRouter.get('/', optionalAuth, async (req, res, next) => {
       const sanitizedQ = q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       filter.$or = [
         { title: { $regex: sanitizedQ, $options: 'i' } },
+        { summary: { $regex: sanitizedQ, $options: 'i' } },
         { description: { $regex: sanitizedQ, $options: 'i' } },
         { requiredSkills: { $regex: sanitizedQ, $options: 'i' } },
+        { technologies: { $regex: sanitizedQ, $options: 'i' } },
       ];
     }
 
@@ -137,6 +152,25 @@ projectRouter.get('/', optionalAuth, async (req, res, next) => {
         .filter(Boolean);
       if (skillsArray.length > 0) {
         filter.requiredSkills = { $in: skillsArray };
+      }
+    }
+
+    // Technologies filter (comma-separated or single)
+    if (req.query.technologies && typeof req.query.technologies === 'string') {
+      const techArray = req.query.technologies
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
+      if (techArray.length > 0) {
+        filter.technologies = { $in: techArray };
+      }
+    }
+
+    // Work Mode filter (remote / on_site / hybrid)
+    if (req.query.workMode && typeof req.query.workMode === 'string') {
+      const wm = req.query.workMode.toLowerCase().trim();
+      if (['remote', 'on_site', 'hybrid'].includes(wm)) {
+        filter.workMode = wm;
       }
     }
 
@@ -216,19 +250,22 @@ projectRouter.get('/', optionalAuth, async (req, res, next) => {
       let bookmarkedSet = new Set();
       let reactionMap = new Map();
       let repostedSet = new Set();
+      let appliedSet = new Set();
 
       let userSkills = [];
       if (req.user) {
-        const [userBookmarks, userReactions, userReposts, userProfile] = await Promise.all([
+        const [userBookmarks, userReactions, userReposts, userApplications, userProfile] = await Promise.all([
           ProjectBookmark.find({ user: req.user._id, project: { $in: projectIds } }).select('project').lean(),
           Reaction.find({ userId: req.user._id, targetType: 'project', targetId: { $in: projectIds } }).select('targetId reactionType').lean(),
           ProjectRepost.find({ user: req.user._id, project: { $in: projectIds } }).select('project').lean(),
+          Application.find({ applicant: req.user._id, project: { $in: projectIds }, status: { $ne: 'withdrawn' } }).select('project').lean(),
           Profile.findOne({ user: req.user._id }).select('skills techStack').lean(),
         ]);
 
         bookmarkedSet = new Set(userBookmarks.map((b) => String(b.project)));
         reactionMap = new Map(userReactions.map((r) => [String(r.targetId), r.reactionType]));
         repostedSet = new Set(userReposts.map((r) => String(r.project)));
+        appliedSet = new Set(userApplications.map((a) => String(a.project)));
         userSkills = [
           ...(userProfile?.skills || []),
           ...(userProfile?.techStack || []),
@@ -252,6 +289,7 @@ projectRouter.get('/', optionalAuth, async (req, res, next) => {
           isBookmarked: bookmarkedSet.has(pId),
           userReaction: reactionMap.get(pId) || null,
           hasReposted: repostedSet.has(pId),
+          hasApplied: appliedSet.has(pId),
           repostInfo: rep
             ? {
                 repostedBy: rep.user,
@@ -499,7 +537,7 @@ projectRouter.post('/', protect, async (req, res, next) => {
         const symbol = currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency === 'INR' ? '₹' : '$';
         formattedBudget = `${symbol}${budgetMin.toLocaleString()} - ${symbol}${budgetMax.toLocaleString()}`;
       } else {
-        formattedBudget = '$1,000 - $3,000';
+        formattedBudget = 'Community Project';
       }
     }
 
@@ -596,36 +634,65 @@ projectRouter.post('/', protect, async (req, res, next) => {
       return res.status(400).json({ success: false, message: `Invalid visibility: ${rawData.visibility}` });
     }
 
-    // Status: only 'open' or 'draft' allowed at creation
+    // Status: only 'open', 'published' or 'draft' allowed at creation
     let status = 'open';
     if (rawData.status) {
       const normStatus = rawData.status.toLowerCase().trim();
-      if (!['draft', 'open'].includes(normStatus)) {
-        return res.status(400).json({ success: false, message: 'Initial project status must be either open or draft' });
+      if (!['draft', 'open', 'published'].includes(normStatus)) {
+        return res.status(400).json({ success: false, message: 'Initial project status must be open, published, or draft' });
       }
-      status = normStatus;
+      status = normStatus === 'published' ? 'open' : normStatus;
     }
 
     // 9. Build Sanitized Project Document
     const projectData = {
       title,
+      summary: typeof rawData.summary === 'string' ? rawData.summary.trim().slice(0, 300) : '',
       description,
+      coverImage: typeof rawData.coverImage === 'string' ? rawData.coverImage.trim() : '',
+      attachments: Array.isArray(rawData.attachments)
+        ? rawData.attachments.map((a) => ({
+            name: String(a?.name || '').trim(),
+            url: String(a?.url || '').trim(),
+            size: Number(a?.size || 0),
+            type: String(a?.type || ''),
+          }))
+        : [],
       owner: req.user._id, // Enforce authenticated owner
       category: rawData.category && typeof rawData.category === 'string' ? rawData.category.trim() : 'Web Development',
       projectType,
       experienceLevel,
       teamSize,
       budget: formattedBudget,
+      budgetType: ['fixed', 'hourly', 'negotiable', 'milestone'].includes(rawData.budgetType)
+        ? rawData.budgetType
+        : 'fixed',
       budgetMin,
       budgetMax,
       currency,
+      paymentStructure: ['milestone_based', 'upon_completion', 'hourly', 'custom'].includes(rawData.paymentStructure)
+        ? rawData.paymentStructure
+        : 'milestone_based',
+      startDate: rawData.startDate ? new Date(rawData.startDate) : undefined,
       duration: rawData.duration && typeof rawData.duration === 'string' ? rawData.duration.trim() : '1 - 2 Months',
       commitment,
+      workMode: ['remote', 'on_site', 'hybrid'].includes(rawData.workMode) ? rawData.workMode : 'remote',
+      collaborationPreferences:
+        rawData.collaborationPreferences && typeof rawData.collaborationPreferences === 'object'
+          ? rawData.collaborationPreferences
+          : {},
       visibility,
       status,
       requiredSkills: cleanSkills,
+      technologies: Array.isArray(rawData.technologies)
+        ? rawData.technologies.map((t) => String(t).trim()).filter(Boolean)
+        : [],
+      requiredRoles: Array.isArray(rawData.requiredRoles)
+        ? rawData.requiredRoles.map((r) => String(r).trim()).filter(Boolean)
+        : [],
       deadline: parsedDeadline,
       applicationDeadline: parsedAppDeadline,
+      publishedAt: status === 'open' ? new Date() : undefined,
       githubRepoUrl,
       liveDemoUrl,
     };
@@ -979,6 +1046,152 @@ projectRouter.delete('/:id', protect, async (req, res, next) => {
     next(err);
   }
 });
+
+// ==========================================
+// 7b. LIFECYCLE MANAGEMENT (Publish, Pause, Resume)
+// ==========================================
+
+// POST /api/projects/:id/publish - Publish a draft or paused project
+projectRouter.post('/:id/publish', protect, async (req, res, next) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
+    const isOwner = String(project.owner) === String(req.user._id);
+    const isAdmin = req.user.role === 'admin';
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ success: false, message: 'Only the project owner can publish this project' });
+    }
+    if (!['draft', 'paused'].includes(project.status)) {
+      return res.status(400).json({ success: false, message: `Cannot publish project currently in "${project.status}" state` });
+    }
+    project.status = 'open';
+    project.publishedAt = project.publishedAt || new Date();
+    await project.save();
+
+    emitToProject(project._id, 'project:published', project, { actor: req.user, resourceId: project._id });
+    emitToProject(project._id, 'project:statusChanged', { status: 'open' }, { actor: req.user, resourceId: project._id });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Project published successfully',
+      project,
+      data: project,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/projects/:id/pause - Pause an open project to stop receiving applications
+projectRouter.post('/:id/pause', protect, async (req, res, next) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
+    const isOwner = String(project.owner) === String(req.user._id);
+    const isAdmin = req.user.role === 'admin';
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ success: false, message: 'Only the project owner can pause this project' });
+    }
+    if (project.status !== 'open') {
+      return res.status(400).json({ success: false, message: `Cannot pause project currently in "${project.status}" state` });
+    }
+    project.status = 'paused';
+    project.applicationStatus = 'closed';
+    await project.save();
+
+    emitToProject(project._id, 'project:paused', project, { actor: req.user, resourceId: project._id });
+    emitToProject(project._id, 'project:statusChanged', { status: 'paused' }, { actor: req.user, resourceId: project._id });
+    emitToProject(project._id, 'project:applicationStatusChanged', { projectId: project._id, applicationStatus: 'closed' }, { actor: req.user, resourceId: project._id });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Project paused successfully. New applications are temporarily blocked.',
+      project,
+      data: project,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/projects/:id/resume - Resume a paused project back to open
+projectRouter.post('/:id/resume', protect, async (req, res, next) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
+    const isOwner = String(project.owner) === String(req.user._id);
+    const isAdmin = req.user.role === 'admin';
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ success: false, message: 'Only the project owner can resume this project' });
+    }
+    if (project.status !== 'paused') {
+      return res.status(400).json({ success: false, message: `Cannot resume project currently in "${project.status}" state` });
+    }
+    project.status = 'open';
+    project.applicationStatus = 'open';
+    await project.save();
+
+    emitToProject(project._id, 'project:statusChanged', { status: 'open' }, { actor: req.user, resourceId: project._id });
+    emitToProject(project._id, 'project:applicationStatusChanged', { projectId: project._id, applicationStatus: 'open' }, { actor: req.user, resourceId: project._id });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Project resumed successfully. Applications are now open.',
+      project,
+      data: project,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PATCH & POST /api/projects/:id/application-status - Explicitly toggle or set application status (open / closed)
+const updateProjectApplicationStatusHandler = async (req, res, next) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
+
+    const isOwner = String(project.owner) === String(req.user._id);
+    const isAdmin = req.user.role === 'admin';
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ success: false, message: 'Only the project owner can change application status' });
+    }
+
+    let targetStatus = req.body?.applicationStatus;
+    if (!targetStatus) {
+      // Toggle if not explicitly provided
+      targetStatus = project.applicationStatus === 'closed' ? 'open' : 'closed';
+    } else {
+      targetStatus = String(targetStatus).toLowerCase().trim();
+      if (!['open', 'closed'].includes(targetStatus)) {
+        return res.status(400).json({ success: false, message: 'applicationStatus must be "open" or "closed"' });
+      }
+    }
+
+    project.applicationStatus = targetStatus;
+    // If opening applications while project was paused, resume to open
+    if (targetStatus === 'open' && project.status === 'paused') {
+      project.status = 'open';
+    }
+    await project.save();
+
+    emitToProject(project._id, 'project:applicationStatusChanged', { projectId: project._id, applicationStatus: targetStatus }, { actor: req.user, resourceId: project._id });
+    emitToProject(project._id, 'project:updated', project, { actor: req.user, resourceId: project._id });
+
+    return res.status(200).json({
+      success: true,
+      message: `Project applications are now ${targetStatus === 'open' ? 'open' : 'closed'}`,
+      applicationStatus: targetStatus,
+      project,
+      data: project,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+projectRouter.patch('/:id/application-status', protect, updateProjectApplicationStatusHandler);
+projectRouter.post('/:id/application-status', protect, updateProjectApplicationStatusHandler);
 
 // ==========================================
 // 7a. REACTIONS (Like, Celebrate, Support, Insightful, Curious)
@@ -1594,8 +1807,8 @@ projectRouter.post('/:id/views', optionalAuth, async (req, res, next) => {
       success: true,
       counted: true,
       isUnique: isFirstTimeUnique,
-      viewsCount: updated.viewsCount || 1,
-      uniqueViewsCount: updated.uniqueViewsCount || 1,
+      viewsCount: updated?.viewsCount || (project.viewsCount || 0) + 1,
+      uniqueViewsCount: updated?.uniqueViewsCount || (project.uniqueViewsCount || 0) + 1,
     });
   } catch (err) {
     next(err);
@@ -1674,10 +1887,10 @@ const applyToProjectHandler = async (req, res, next) => {
     }
 
     // Status check
-    if (project.status !== 'open') {
+    if (project.applicationStatus === 'closed' || project.status !== 'open') {
       return res.status(400).json({
         success: false,
-        message: `Project is currently ${project.status} and not accepting new applications`,
+        message: 'Applications for this project are currently closed',
       });
     }
 
@@ -1706,7 +1919,18 @@ const applyToProjectHandler = async (req, res, next) => {
       });
     }
 
-    const { coverLetter, proposedRate, resumeUrl } = req.body || {};
+    const {
+      coverLetter,
+      proposedRate,
+      rateType = 'fixed',
+      estimatedDuration = '',
+      relevantSkills = [],
+      portfolioLinks = [],
+      relevantExperience = '',
+      availability = 'immediate',
+      proposalAttachments = [],
+      resumeUrl,
+    } = req.body || {};
 
     if (coverLetter && typeof coverLetter === 'string' && coverLetter.length > 3000) {
       return res.status(400).json({
@@ -1734,16 +1958,31 @@ const applyToProjectHandler = async (req, res, next) => {
         existingApp.status = 'pending';
         existingApp.coverLetter = coverLetter || existingApp.coverLetter;
         existingApp.proposedRate = proposedRate || existingApp.proposedRate;
+        existingApp.rateType = ['fixed', 'hourly', 'per_milestone'].includes(rateType) ? rateType : existingApp.rateType;
+        existingApp.estimatedDuration = estimatedDuration || existingApp.estimatedDuration;
+        existingApp.relevantSkills = Array.isArray(relevantSkills) && relevantSkills.length > 0 ? relevantSkills : existingApp.relevantSkills;
+        existingApp.portfolioLinks = Array.isArray(portfolioLinks) && portfolioLinks.length > 0 ? portfolioLinks : existingApp.portfolioLinks;
+        existingApp.relevantExperience = relevantExperience || existingApp.relevantExperience;
+        existingApp.availability = availability || existingApp.availability;
         if (resumeUrl) existingApp.resumeUrl = resumeUrl;
+        if (Array.isArray(proposalAttachments) && proposalAttachments.length > 0) existingApp.proposalAttachments = proposalAttachments;
+        existingApp.withdrawnAt = null;
         await existingApp.save();
+
+        await Project.findByIdAndUpdate(project._id, { $inc: { applicationsCount: 1 } });
 
         await sendNotification({
           recipient: project.owner,
           sender: req.user._id,
           type: 'application',
           title: 'Application Resubmitted',
-          message: `${req.user.name} resubmitted their application to "${project.title}"`,
+          message: `${req.user.name} resubmitted their proposal to "${project.title}"`,
           link: `/projects/${project._id}`,
+        });
+
+        emitToUser(project.owner, 'application:submitted', {
+          application: existingApp,
+          project: { _id: project._id, title: project.title },
         });
 
         return res.status(200).json({
@@ -1755,7 +1994,7 @@ const applyToProjectHandler = async (req, res, next) => {
 
       return res.status(400).json({
         success: false,
-        message: 'You have already submitted an application for this project',
+        message: 'You have already submitted an active application for this project',
       });
     }
 
@@ -1767,6 +2006,20 @@ const applyToProjectHandler = async (req, res, next) => {
       applicant: req.user._id,
       coverLetter: coverLetter || 'I am interested in collaborating on this project.',
       proposedRate: proposedRate || '',
+      rateType: ['fixed', 'hourly', 'per_milestone'].includes(rateType) ? rateType : 'fixed',
+      estimatedDuration: typeof estimatedDuration === 'string' ? estimatedDuration.trim() : '',
+      relevantSkills: Array.isArray(relevantSkills) ? relevantSkills.map(s => String(s).trim()).filter(Boolean) : [],
+      portfolioLinks: Array.isArray(portfolioLinks) ? portfolioLinks.map(l => String(l).trim()).filter(Boolean) : [],
+      relevantExperience: typeof relevantExperience === 'string' ? relevantExperience.trim().slice(0, 2000) : '',
+      availability: typeof availability === 'string' ? availability.trim() : 'immediate',
+      proposalAttachments: Array.isArray(proposalAttachments)
+        ? proposalAttachments.map(a => ({
+            name: String(a?.name || '').trim(),
+            url: String(a?.url || '').trim(),
+            size: Number(a?.size || 0),
+            type: String(a?.type || ''),
+          }))
+        : [],
       resumeUrl: resumeUrl || '',
       status: 'pending',
       applicantSnapshot: {
@@ -1778,7 +2031,7 @@ const applyToProjectHandler = async (req, res, next) => {
       },
     });
 
-    // Increment applications count
+    // Increment applications count atomically
     await Project.findByIdAndUpdate(project._id, { $inc: { applicationsCount: 1 } });
 
     // Record application activity

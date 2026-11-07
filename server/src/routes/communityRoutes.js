@@ -425,6 +425,7 @@ communityRouter.post('/posts/:id/impression', optionalAuth, async (req, res, nex
       return res.status(404).json({ success: false, message: 'Post not found' });
     }
 
+
     post.impressionsCount = (post.impressionsCount || 0) + 1;
 
     if (req.user && req.user._id) {
@@ -473,6 +474,7 @@ communityRouter.post('/posts/:id/click', optionalAuth, async (req, res, next) =>
     if (!post) {
       return res.status(404).json({ success: false, message: 'Post not found' });
     }
+
 
     post.clicksCount = (post.clicksCount || 0) + 1;
 
@@ -615,6 +617,7 @@ const updatePostHandler = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Post not found' });
     }
 
+
     const isAuthor = String(post.author) === String(req.user._id);
     const isAdmin = req.user.role === 'admin';
     if (!isAuthor && !isAdmin) {
@@ -692,6 +695,10 @@ communityRouter.post('/posts/:id/convert-to-project', protect, async (req, res, 
       return res.status(404).json({ success: false, message: 'Post not found' });
     }
 
+    if (String(post.author) !== String(req.user._id) && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Only the idea author can convert this idea into a project' });
+    }
+
     const { projectId } = req.body;
     if (!projectId || !mongoose.Types.ObjectId.isValid(projectId)) {
       return res.status(400).json({ success: false, message: 'Valid projectId is required' });
@@ -742,6 +749,7 @@ communityRouter.delete('/posts/:id', protect, async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Post not found' });
     }
 
+
     const isAuthor = String(post.author) === String(req.user._id);
     const isAdmin = req.user.role === 'admin';
     if (!isAuthor && !isAdmin) {
@@ -773,6 +781,7 @@ communityRouter.post('/posts/:id/reactions', protect, async (req, res, next) => 
     if (!post) {
       return res.status(404).json({ success: false, message: 'Post not found' });
     }
+
 
     const userId = req.user._id;
     if (!Array.isArray(post.likes)) post.likes = [];
@@ -820,6 +829,7 @@ communityRouter.post('/posts/:id/bookmark', protect, async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Post not found' });
     }
 
+
     const userId = req.user._id;
     if (!Array.isArray(post.savedBy)) post.savedBy = [];
 
@@ -861,6 +871,7 @@ communityRouter.post('/posts/:id/pin', protect, async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Post not found' });
     }
 
+
     const { isPinned } = req.body;
     post.isPinned = isPinned !== undefined ? Boolean(isPinned) : !post.isPinned;
     await post.save();
@@ -888,6 +899,7 @@ communityRouter.post('/posts/:id/repost', protect, async (req, res, next) => {
     if (!post) {
       return res.status(404).json({ success: false, message: 'Post not found' });
     }
+
 
     // Target the root post to prevent deep recursive repost chains
     const targetPostId = post.originalPost || post._id;
@@ -938,6 +950,7 @@ communityRouter.get('/posts/:id/comments', optionalAuth, async (req, res, next) 
     if (!post) {
       return res.status(404).json({ success: false, message: 'Post not found' });
     }
+
 
     const rawComments = await Comment.find({ post: req.params.id })
       .populate('author', 'name username email avatar avatarUrl headline role')
@@ -1000,6 +1013,7 @@ communityRouter.post('/posts/:id/comments', protect, async (req, res, next) => {
     if (!post) {
       return res.status(404).json({ success: false, message: 'Post not found' });
     }
+
 
     const { content, parentComment, parentId } = req.body;
     if (!content || !content.trim()) {

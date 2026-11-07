@@ -175,7 +175,7 @@ export const ChatPage = () => {
   };
 
   return (
-    <div className="h-full w-full flex flex-col overflow-hidden bg-white dark:bg-[#111b21]">
+    <div className="h-full w-full flex flex-col overflow-hidden bg-slate-50 dark:bg-[#0c1319]">
       {/* Access Denied Warning Banner if outsider tries to access a project chat */}
       {accessError && (
         <div className="p-3 px-4 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs flex items-center justify-between gap-3 animate-fade-in shrink-0">
@@ -186,7 +186,7 @@ export const ChatPage = () => {
           <button
             type="button"
             onClick={() => setAccessError('')}
-            className="p-1 rounded hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-600"
+            className="p-1 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-600"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -195,22 +195,22 @@ export const ChatPage = () => {
 
       {/* Mobile Back Header Bar */}
       {showMobileChat && (
-        <div className="md:hidden h-11 px-3 bg-[#f0f2f5] dark:bg-[#202c33] border-b border-slate-200/80 dark:border-slate-700/80 flex items-center shrink-0">
+        <div className="md:hidden h-12 px-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center shrink-0">
           <button
             onClick={() => setShowMobileChat(false)}
-            className="flex items-center gap-1.5 text-xs font-bold text-[#00a884] dark:text-[#25d366]"
+            className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Chats</span>
+            <span>Back to Conversations</span>
           </button>
         </div>
       )}
 
-      {/* WhatsApp Web Split Pane Container */}
+      {/* Split Pane Container */}
       <div className="flex-1 flex overflow-hidden h-full">
-        {/* 1. WhatsApp Left Sidebar */}
+        {/* 1. Left Sidebar */}
         <div
-          className={`w-full md:w-80 lg:w-96 flex flex-col shrink-0 border-r border-slate-200/90 dark:border-slate-800 h-full overflow-hidden ${
+          className={`w-full md:w-80 lg:w-96 flex flex-col shrink-0 border-r border-slate-200/80 dark:border-slate-800 h-full overflow-hidden ${
             showMobileChat ? 'hidden md:flex' : 'flex'
           }`}
         >
@@ -223,7 +223,7 @@ export const ChatPage = () => {
           />
         </div>
 
-        {/* 2. WhatsApp Main Chat Pane */}
+        {/* 2. Main Chat Pane */}
         <div
           className={`flex-1 flex flex-col h-full min-w-0 overflow-hidden ${
             showMobileChat ? 'flex' : 'hidden md:flex'

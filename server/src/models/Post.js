@@ -38,6 +38,12 @@ const postSchema = new mongoose.Schema(
       index: true,
     },
     ideaDetails: {
+      category: { type: String, default: 'Web Development', trim: true },
+      technologies: { type: [String], default: [] },
+      requiredSkills: { type: [String], default: [] },
+      difficulty: { type: String, enum: ['beginner', 'intermediate', 'advanced', 'all'], default: 'intermediate' },
+      expectedOutcome: { type: String, default: '', trim: true },
+      coverImage: { type: String, default: '' },
       targetAudience: { type: String, default: '', trim: true },
       estimatedBudget: { type: String, default: '', trim: true },
       rolesNeeded: { type: [String], default: [] },
@@ -52,7 +58,7 @@ const postSchema = new mongoose.Schema(
       ],
       status: {
         type: String,
-        enum: ['brainstorming', 'seeking_feedback', 'ready_to_build', 'converted'],
+        enum: ['brainstorming', 'seeking_feedback', 'ready_to_build', 'converted', 'project_published'],
         default: 'seeking_feedback',
       },
     },

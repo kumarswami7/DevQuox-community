@@ -255,80 +255,84 @@ export const DeveloperDirectoryPage = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* ── HEADER ────────────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
-              <Users className="w-7 h-7 text-primary-500" />
-              Developer Discovery
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+              <Users className="w-6 h-6 sm:w-7 sm:h-7 text-primary-600 shrink-0" />
+              <span>Developers</span>
+              <span className="hidden sm:inline">Directory</span>
             </h1>
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-primary-500/10 text-primary-600 dark:text-primary-400 border border-primary-500/20">
-              {totalCount} Verified Engineers
+            <span className="px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold bg-primary-500/10 text-primary-600 dark:text-primary-400 border border-primary-500/20 whitespace-nowrap">
+              {totalCount} <span className="hidden sm:inline">Verified </span>Engineers
             </span>
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Discover peer engineers, verified project contributors, and potential collaborators with transparent skill matching.
-          </p>
-        </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          {isAuthenticated && (
-            <Link to="/bookmarks">
-              <Button size="sm" variant="outline" className="gap-1.5 text-xs font-semibold">
-                <Bookmark className="w-4 h-4 text-amber-500" />
-                <span>Saved Developers</span>
-              </Button>
-            </Link>
-          )}
+          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-0.5">
+            {isAuthenticated && (
+              <Link to="/bookmarks">
+                <Button size="sm" variant="outline" className="gap-1 text-xs font-semibold h-8 px-2.5 sm:px-3 rounded-xl whitespace-nowrap">
+                  <Bookmark className="w-3.5 h-3.5 text-amber-500" />
+                  <span className="hidden sm:inline">Saved Developers</span>
+                  <span className="sm:hidden">Saved</span>
+                </Button>
+              </Link>
+            )}
 
-          {isAuthenticated && (
-            <>
-              {savedSearches.length > 0 && (
+            {isAuthenticated && (
+              <>
+                {savedSearches.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsViewSavedSearchesOpen(true)}
+                    className="gap-1 text-xs font-semibold h-8 px-2.5 sm:px-3 rounded-xl whitespace-nowrap"
+                  >
+                    <FolderHeart className="w-3.5 h-3.5 text-slate-500" />
+                    <span className="hidden sm:inline">Saved Searches ({savedSearches.length})</span>
+                    <span className="sm:hidden">Searches ({savedSearches.length})</span>
+                  </Button>
+                )}
+
                 <Button
                   size="sm"
-                  variant="outline"
-                  onClick={() => setIsViewSavedSearchesOpen(true)}
-                  className="gap-1.5 text-xs font-semibold"
+                  variant="primary"
+                  onClick={() => setIsSaveSearchOpen(true)}
+                  className="gap-1 text-xs font-bold shadow-sm h-8 px-2.5 sm:px-3 rounded-xl whitespace-nowrap"
                 >
-                  <FolderHeart className="w-4 h-4 text-slate-500" />
-                  <span>Saved Searches ({savedSearches.length})</span>
+                  <FolderHeart className="w-3.5 h-3.5" />
+                  <span>Save<span className="hidden sm:inline"> Search</span></span>
                 </Button>
-              )}
-
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={() => setIsSaveSearchOpen(true)}
-                className="gap-1.5 text-xs font-bold shadow-sm"
-              >
-                <FolderHeart className="w-4 h-4" />
-                <span>Save Search</span>
-              </Button>
-            </>
-          )}
+              </>
+            )}
+          </div>
         </div>
+
+        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 line-clamp-2 sm:line-clamp-none">
+          Discover peer engineers, verified project contributors, and potential collaborators with transparent skill matching.
+        </p>
       </div>
 
       {/* ── RECOMMENDATIONS CAROUSEL ───────────────────────────────────────── */}
       {isAuthenticated && recommendations.length > 0 && (
-        <Card className="p-4 sm:p-5 border-primary-500/30 bg-gradient-to-r from-primary-500/5 via-accent-500/5 to-transparent relative overflow-hidden">
-          <div className="flex items-center justify-between mb-3">
+        <Card className="p-3.5 sm:p-5 border-primary-500/30 bg-gradient-to-r from-primary-500/5 via-accent-500/5 to-transparent relative overflow-hidden rounded-2xl">
+          <div className="flex items-center justify-between mb-2.5 sm:mb-3">
             <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-primary-500 text-white">
-                <Sparkles className="w-4 h-4" />
+              <div className="p-1 sm:p-1.5 rounded-lg bg-primary-600 text-white shrink-0">
+                <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
-              <h2 className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight">
-                Recommended Collaborators for You
+              <h2 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white tracking-tight truncate">
+                Recommended Collaborators
               </h2>
             </div>
-            <span className="text-[11px] font-semibold text-slate-400">
-              Ranked by community delivery track record
+            <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400 whitespace-nowrap">
+              Top Track Record
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3 overflow-x-auto sm:overflow-visible pb-1 sm:pb-0 no-scrollbar snap-x snap-mandatory">
             {recommendations.slice(0, 3).map((rec, idx) => {
               const dev = rec.item || rec.developer;
               if (!dev) return null;
@@ -336,17 +340,17 @@ export const DeveloperDirectoryPage = () => {
               return (
                 <div
                   key={dev._id || dev.id || idx}
-                  className="p-3.5 rounded-xl border border-slate-200/90 dark:border-slate-800/80 bg-white/80 dark:bg-cardDark/80 hover:shadow-md transition-all flex flex-col justify-between"
+                  className="min-w-[240px] sm:min-w-0 snap-start shrink-0 sm:shrink p-3 rounded-xl border border-slate-200/90 dark:border-slate-800/80 bg-white/80 dark:bg-cardDark/80 hover:shadow-md transition-all flex flex-col justify-between"
                 >
-                  <div className="space-y-1.5">
-                    <div className="flex items-start justify-between gap-2">
+                  <div className="space-y-1">
+                    <div className="flex items-start justify-between gap-1.5">
                       <Link
                         to={`/profile/${dev._id || dev.id}`}
-                        className="text-xs font-bold text-slate-900 dark:text-white hover:text-primary-500 line-clamp-1"
+                        className="text-xs font-bold text-slate-900 dark:text-white hover:text-primary-600 line-clamp-1"
                       >
                         {dev.name}
                       </Link>
-                      <Badge variant="success" className="text-[10px] px-1.5 py-0">
+                      <Badge variant="success" className="text-[9px] px-1.5 py-0 whitespace-nowrap">
                         {dev.availability || "Available"}
                       </Badge>
                     </div>
@@ -356,21 +360,21 @@ export const DeveloperDirectoryPage = () => {
                     </p>
 
                     <div className="text-[10px] text-primary-600 dark:text-primary-400 font-medium flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-primary-500 shrink-0" />
+                      <CheckCircle2 className="w-3 h-3 text-primary-600 shrink-0" />
                       <span className="truncate">{rec.reason}</span>
                     </div>
                   </div>
 
-                  <div className="pt-2.5 mt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-amber-500 flex items-center gap-1">
+                  <div className="pt-2 mt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
+                    <span className="font-bold text-amber-500 flex items-center gap-1">
                       <Star className="w-3 h-3 fill-amber-500" /> {dev.rating || 5}
                       <span className="text-[10px] font-normal text-slate-400">({completed} built)</span>
                     </span>
                     <Link
                       to={`/profile/${dev._id || dev.id}`}
-                      className="text-[11px] font-bold text-primary-500 hover:underline"
+                      className="font-bold text-primary-600 hover:underline"
                     >
-                      View Profile →
+                      View →
                     </Link>
                   </div>
                 </div>
@@ -381,7 +385,7 @@ export const DeveloperDirectoryPage = () => {
       )}
 
       {/* ── FILTER & SEARCH CONTROLS ───────────────────────────────────────── */}
-      <div className="space-y-3">
+      <div className="space-y-2.5 sm:space-y-3">
         {/* Search Bar */}
         <DeveloperSearchBar
           searchQuery={searchQuery}
@@ -396,7 +400,7 @@ export const DeveloperDirectoryPage = () => {
         />
 
         {/* Quick Skill Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 no-scrollbar scrollbar-none">
           {POPULAR_SKILLS.map((skill) => (
             <button
               key={skill}
@@ -405,9 +409,9 @@ export const DeveloperDirectoryPage = () => {
                 setSelectedSkill(skill);
                 setPage(1);
               }}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+              className={`px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                 selectedSkill === skill
-                  ? "bg-primary-500 text-white shadow-sm shadow-primary-500/25 font-bold"
+                  ? "bg-primary-600 text-white shadow-sm shadow-primary-600/25 font-bold"
                   : "bg-white dark:bg-cardDark border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
               }`}
             >
@@ -467,8 +471,8 @@ export const DeveloperDirectoryPage = () => {
           </Button>
         </Card>
       ) : developers.length > 0 ? (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 animate-in fade-in duration-200">
+        <div className="space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5 sm:gap-5 animate-in fade-in duration-200">
             {developers.map((dev) => {
               const devId = dev._id || dev.id;
               const isBookmarked = bookmarkedDevIds.includes(devId);
@@ -500,17 +504,17 @@ export const DeveloperDirectoryPage = () => {
 
           {/* Pagination Controls */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-800">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
               <span className="text-xs text-slate-500 font-medium">
                 Page {page} of {totalPages} ({totalCount} verified developers)
               </span>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
                 <Button
                   size="sm"
                   variant="outline"
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="gap-1 text-xs font-semibold"
+                  className="gap-1 text-xs font-semibold flex-1 sm:flex-none h-8 rounded-xl"
                 >
                   <ChevronLeft className="w-4 h-4" /> Previous
                 </Button>
@@ -519,7 +523,7 @@ export const DeveloperDirectoryPage = () => {
                   variant="outline"
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  className="gap-1 text-xs font-semibold"
+                  className="gap-1 text-xs font-semibold flex-1 sm:flex-none h-8 rounded-xl"
                 >
                   Next <ChevronRight className="w-4 h-4" />
                 </Button>

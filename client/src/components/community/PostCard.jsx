@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Heart,
   MessageSquare,
   Bookmark,
   Share2,
+  Repeat2,
   Pin,
   MoreVertical,
   Edit2,
@@ -71,6 +72,44 @@ export const PostCard = ({
     )
   );
   const [isSaving, setIsSaving] = useState(false);
+  const [repostCount, setRepostCount] = useState(
+    post.repostsCount ?? post.repostCount ?? post.repostedBy?.length ?? 0
+  );
+  const [hasReposted, setHasReposted] = useState(
+    Boolean(
+      post.isReposted ||
+      post.hasReposted ||
+      (currentUserId && post.repostedBy?.some((id) => String(id?._id || id) === String(currentUserId)))
+    )
+  );
+  const [isReposting, setIsReposting] = useState(false);
+
+  useEffect(() => {
+    setCommentCount(post.commentsCount ?? post.commentCount ?? 0);
+    setLikeCount(post.likeCount ?? post.reactionCounts?.like ?? post.likes?.length ?? post.upvotes ?? 0);
+    setHasLiked(
+      Boolean(
+        post.hasLiked ||
+        post.hasReacted ||
+        post.userReaction === "like" ||
+        (currentUserId && post.likes?.some((id) => String(id?._id || id) === String(currentUserId)))
+      )
+    );
+    setIsSaved(
+      Boolean(
+        post.isSaved ||
+        (currentUserId && post.savedBy?.some((id) => String(id?._id || id) === String(currentUserId)))
+      )
+    );
+    setRepostCount(post.repostsCount ?? post.repostCount ?? post.repostedBy?.length ?? 0);
+    setHasReposted(
+      Boolean(
+        post.isReposted ||
+        post.hasReposted ||
+        (currentUserId && post.repostedBy?.some((id) => String(id?._id || id) === String(currentUserId)))
+      )
+    );
+  }, [post, currentUserId]);
   const [copied, setCopied] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -104,6 +143,34 @@ export const PostCard = ({
       setLikeCount(prevCount);
     } finally {
       setIsLiking(false);
+    }
+  };
+  const handleToggleRepost = async () => {
+    if (!currentUserId || isReposting) return;
+    setIsReposting(true);
+    const prevReposted = hasReposted;
+    const prevCount = repostCount;
+    setHasReposted(!prevReposted);
+    setRepostCount(prevReposted ? Math.max(0, prevCount - 1) : prevCount + 1);
+    try {
+      const res = await communityService.repostPost(post._id);
+      if (res.data?.data) {
+        const d = res.data.data;
+        if (d.isReposted !== undefined) setHasReposted(Boolean(d.isReposted));
+        if (d.repostCount !== undefined) setRepostCount(d.repostCount);
+        if (onPostUpdated) {
+          onPostUpdated({
+            ...post,
+            isReposted: d.isReposted,
+            repostCount: d.repostCount,
+          });
+        }
+      }
+    } catch {
+      setHasReposted(prevReposted);
+      setRepostCount(prevCount);
+    } finally {
+      setIsReposting(false);
     }
   };
   const handleToggleSave = async () => {
@@ -179,57 +246,146 @@ export const PostCard = ({
       setIsSubmittingEdit(false);
     }
   };
-  return <div className="bg-white dark:bg-cardDark border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-4 hover:border-slate-300 dark:hover:border-slate-700 transition-all">{
-    /* Post Header: Author info, Post Type badge, Options */
-  }<div className="flex items-start justify-between gap-3"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700 shrink-0">{post.author?.avatarUrl || post.author?.avatar ? <img
-    src={post.author?.avatarUrl || post.author?.avatar}
-    alt={post.author?.name}
-    className="w-full h-full object-cover"
-  /> : <div className="w-full h-full flex items-center justify-center font-bold text-slate-500 text-sm">{post.author?.name?.charAt(0) || "U"}</div>}</div><div><div className="flex items-center gap-2 flex-wrap"><span className="font-bold text-slate-900 dark:text-white text-sm">{post.author?.name}</span><span className="text-xs text-slate-400">@{post.author?.username}</span>{post.author?.role && <span className="px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-500">{post.author.role}</span>}</div><div className="flex items-center gap-2 text-xs text-slate-400 pt-0.5"><span>{new Date(post.createdAt).toLocaleDateString(void 0, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit"
-  })}</span>{post.isEdited && <span className="italic">(edited)</span>}</div></div></div>{
-    /* Badges & Options */
-  }<div className="flex items-center gap-2">{post.isPinned && <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800"><Pin className="w-3 h-3 fill-amber-500" />
-              Pinned
-            </span>}<Badge variant={typeInfo.badgeVariant} className="flex items-center gap-1"><TypeIcon className="w-3 h-3" />{typeInfo.label}</Badge>{
-    /* Options Dropdown */
-  }<div className="relative"><button
-    onClick={() => setMenuOpen(!menuOpen)}
-    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-  ><MoreVertical className="w-4 h-4" /></button>{menuOpen && <div
-    className="absolute right-0 mt-1 w-44 bg-white dark:bg-cardDark border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl py-1 z-20 text-xs animate-fadeIn"
-    onClick={() => setMenuOpen(false)}
-  >{isAuthor && <button
-    onClick={() => {
-      setIsEditing(true);
-      setEditTitle(post.title || "");
-      setEditContent(post.content);
-    }}
-    className="w-full flex items-center gap-2 px-3 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
-  ><Edit2 className="w-3.5 h-3.5" />
+  return (
+    <div className="bg-white dark:bg-cardDark border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 sm:p-5 shadow-sm space-y-3 sm:space-y-4 hover:border-slate-300 dark:hover:border-slate-700 transition-all">
+      {/* Post Header: Author info, Post Type badge, Options */}
+      <div className="flex items-start justify-between gap-2 sm:gap-3">
+        <div className="flex items-start gap-2.5 sm:gap-3 min-w-0 flex-1">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700 shrink-0 mt-0.5 aspect-square">
+            {post.author?.avatarUrl || post.author?.avatar ? (
+              <img
+                src={post.author?.avatarUrl || post.author?.avatar}
+                alt={post.author?.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center font-bold text-slate-500 text-sm">
+                {post.author?.name?.charAt(0) || "U"}
+              </div>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm truncate">
+                {post.author?.name}
+              </span>
+              {post.author?.username && (
+                <span className="text-[11px] text-slate-400 truncate hidden sm:inline">
+                  @{post.author?.username}
+                </span>
+              )}
+              {post.author?.role && (
+                <span className="px-1.5 py-0.5 rounded text-[9px] uppercase font-bold tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-500 whitespace-nowrap shrink-0">
+                  {post.author.role}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-400 pt-0.5">
+              <span>
+                {new Date(post.createdAt).toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+              {post.isEdited && <span className="italic">(edited)</span>}
+            </div>
+          </div>
+        </div>
+
+        {/* Badges & Options */}
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+          {post.isPinned && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800 whitespace-nowrap">
+              <Pin className="w-3 h-3 fill-amber-500" />
+              <span className="hidden sm:inline">Pinned</span>
+            </span>
+          )}
+          <Badge variant={typeInfo.badgeVariant} className="flex items-center gap-1 text-[10px] sm:text-xs px-2 py-0.5 whitespace-nowrap">
+            <TypeIcon className="w-3 h-3 shrink-0" />
+            <span>
+              {typeInfo.label === "Project Idea & Pitch" ? (
+                <>
+                  <span className="hidden sm:inline">Project </span>Idea
+                </>
+              ) : (
+                typeInfo.label
+              )}
+            </span>
+          </Badge>
+
+          {/* Options Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+            {menuOpen && (
+              <div
+                className="absolute right-0 mt-1 w-44 bg-white dark:bg-cardDark border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl py-1 z-20 text-xs animate-fadeIn"
+                onClick={() => setMenuOpen(false)}
+              >
+                {isAuthor && (
+                  <button
+                    onClick={() => {
+                      setIsEditing(true);
+                      setEditTitle(post.title || "");
+                      setEditContent(post.content);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
                     Edit Post
-                  </button>}{(isAuthor || isModerator) && <button
-    onClick={handleDelete}
-    className="w-full flex items-center gap-2 px-3 py-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-  ><Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {(isAuthor || isModerator) && (
+                  <button
+                    onClick={handleDelete}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
                     Delete Post
-                  </button>}{isModerator && <><button
-    onClick={handleTogglePin}
-    className="w-full flex items-center gap-2 px-3 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
-  ><Pin className="w-3.5 h-3.5" />{post.isPinned ? "Unpin from Top" : "Pin to Top"}</button><button
-    onClick={handleToggleHide}
-    className="w-full flex items-center gap-2 px-3 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
-  ><EyeOff className="w-3.5 h-3.5" />{post.status === "hidden" ? "Restore Post" : "Hide from Feed"}</button></>}{!isAuthor && <button
-    onClick={() => setIsReportOpen(true)}
-    className="w-full flex items-center gap-2 px-3 py-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-  ><AlertTriangle className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {isModerator && (
+                  <>
+                    <button
+                      onClick={handleTogglePin}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+                    >
+                      <Pin className="w-3.5 h-3.5" />
+                      {post.isPinned ? "Unpin from Top" : "Pin to Top"}
+                    </button>
+                    <button
+                      onClick={handleToggleHide}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+                    >
+                      <EyeOff className="w-3.5 h-3.5" />
+                      {post.status === "hidden" ? "Restore Post" : "Hide from Feed"}
+                    </button>
+                  </>
+                )}
+                {!isAuthor && (
+                  <button
+                    onClick={() => setIsReportOpen(true)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5" />
                     Report Post
-                  </button>}</div>}</div></div></div>{
-    /* Post Content / Inline Edit */
-  }{isEditing ? <div className="space-y-3 pt-1"><input
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Post Content / Inline Edit */}
+      {isEditing ? <div className="space-y-3 pt-1">
+          <input
     type="text"
     value={editTitle}
     onChange={(e) => setEditTitle(e.target.value)}
@@ -274,97 +430,185 @@ export const PostCard = ({
   >
                   #{tag}</span>)}</div>}
 
-  {/* Attached Documents or Images */}
-  {Array.isArray(post.ideaDetails?.attachments || post.attachments) &&
-    (post.ideaDetails?.attachments || post.attachments).length > 0 && (
-      <div className="pt-2 flex flex-wrap gap-2">
-        {(post.ideaDetails?.attachments || post.attachments).map((att, idx) => (
-          <a
-            key={idx}
-            href={att.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            download={att.name}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 hover:border-amber-400 text-xs font-semibold text-slate-800 dark:text-slate-200 transition-colors shadow-2xs"
-          >
-            {att.fileType === "image" ? (
-              <ImageIcon className="w-3.5 h-3.5 text-emerald-500" />
-            ) : (
-              <FileText className="w-3.5 h-3.5 text-blue-500" />
-            )}
-            <span className="truncate max-w-[160px]">{att.name}</span>
-            <ExternalLink className="w-3 h-3 text-slate-400" />
-          </a>
-        ))}
+  {/* Attached Images & Documents */}
+  {(() => {
+    const allAtts = Array.isArray(post.ideaDetails?.attachments || post.attachments)
+      ? (post.ideaDetails?.attachments || post.attachments)
+      : [];
+    if (!allAtts.length) return null;
+
+    const isImg = (att) => {
+      if (!att) return false;
+      const ft = (att.fileType || "").toLowerCase();
+      if (ft === "image" || ft.startsWith("image/")) return true;
+      const name = (att.name || "").toLowerCase();
+      const url = (att.url || "").toLowerCase();
+      return (
+        name.endsWith(".jpg") ||
+        name.endsWith(".jpeg") ||
+        name.endsWith(".png") ||
+        name.endsWith(".webp") ||
+        name.endsWith(".gif") ||
+        url.includes(".jpg") ||
+        url.includes(".jpeg") ||
+        url.includes(".png") ||
+        url.includes(".webp") ||
+        url.includes(".gif")
+      );
+    };
+
+    const imgAtts = allAtts.filter(isImg);
+    const docAtts = allAtts.filter((a) => !isImg(a));
+
+    return (
+      <div className="space-y-2 pt-2">
+        {/* Render images if not already rendered in mediaUrls */}
+        {(!post.mediaUrls || !post.mediaUrls.length) && imgAtts.length > 0 && (
+          <div className="rounded-xl overflow-hidden max-h-96 border border-slate-100 dark:border-slate-800 bg-slate-900/5">
+            <img
+              src={imgAtts[0].url}
+              alt={imgAtts[0].name || "Post attachment"}
+              className="w-full h-auto max-h-96 object-cover rounded-xl"
+              onError={(e) => {
+                e.target.style.display = "none";
+              }}
+            />
+          </div>
+        )}
+
+        {/* Render Document Files */}
+        {docAtts.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {docAtts.map((att, idx) => (
+              <a
+                key={idx}
+                href={att.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                download={att.name}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 hover:border-amber-400 text-xs font-semibold text-slate-800 dark:text-slate-200 transition-colors shadow-2xs"
+              >
+                <FileText className="w-3.5 h-3.5 text-blue-500" />
+                <span className="truncate max-w-[160px]">{att.name}</span>
+                <ExternalLink className="w-3 h-3 text-slate-400" />
+              </a>
+            ))}
+          </div>
+        )}
       </div>
-    )}</div>}{
-    /* Action Controls Bar */
-  }<div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500"><div className="flex items-center gap-4">{
-    /* Reaction Button */
-  }<button
-    onClick={handleToggleLike}
-    className={`flex items-center gap-1.5 font-medium transition-colors ${hasLiked ? "text-rose-500" : "hover:text-rose-500"}`}
-  ><Heart className={`w-4 h-4 ${hasLiked ? "fill-rose-500 text-rose-500" : ""}`} /><span>{likeCount}</span></button>{
-    /* Comments Button */
-  }<button
-    onClick={() => setShowComments(!showComments)}
-    className={`flex items-center gap-1.5 font-medium transition-colors ${showComments ? "text-primary-500" : "hover:text-primary-500"}`}
-  ><MessageSquare className="w-4 h-4" /><span>{commentCount}</span></button>{
-    /* Save / Bookmark Button */
-  }<button
-    onClick={handleToggleSave}
-    className={`flex items-center gap-1.5 font-medium transition-colors ${isSaved ? "text-amber-500" : "hover:text-amber-500"}`}
-  ><Bookmark className={`w-4 h-4 ${isSaved ? "fill-amber-500 text-amber-500" : ""}`} /><span>{isSaved ? "Saved" : "Save"}</span></button></div>{
-    /* Idea Launch / Active Button */
-  }{(post.postType === "idea" || post.ideaDetails) && (
-    post.convertedToProject ? (
-      <Link to={`/projects/${post.convertedToProject._id || post.convertedToProject}`}>
-        <Button size="xs" variant="outline" className="text-[11px] gap-1 font-bold text-emerald-600 border-emerald-500/40">
-          <Rocket className="w-3 h-3 text-emerald-500" />
-          <span>Project Active</span>
-        </Button>
-      </Link>
-    ) : isAuthor ? (
-      <Button
-        type="button"
-        size="xs"
-        variant="primary"
-        onClick={() => {
-          navigate('/projects/create', {
-            state: {
-              fromIdea: {
-                postId: post._id,
-                title: post.title || '',
-                description: post.content || '',
-                category: 'Web Development',
-                skills: post.tags || [],
-              },
-            },
-          });
-        }}
-        className="text-[11px] gap-1 font-bold bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-xs"
-      >
-        <Rocket className="w-3 h-3" />
-        <span>Launch as Project</span>
-      </Button>
-    ) : (
-      <Button
-        type="button"
-        size="xs"
-        variant="outline"
-        onClick={() => setShowComments(true)}
-        className="text-[11px] gap-1 font-semibold text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700"
-      >
-        <MessageSquare className="w-3 h-3 text-amber-500" />
-        <span>Give Feedback</span>
-      </Button>
-    )
-  )}<button
-    type="button"
-    onClick={handleShare}
-    className="flex items-center gap-1 hover:text-primary-500 transition-colors"
-    title="Share post"
-  ><Share2 className="w-3.5 h-3.5" /><span>Share</span></button></div>{
+    );
+  })()}</div>}
+
+      {/* Action Controls Bar */}
+      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-3 sm:gap-4">
+            {/* Reaction Button */}
+            <button
+              onClick={handleToggleLike}
+              className={`flex items-center gap-1 sm:gap-1.5 font-medium transition-colors ${
+                hasLiked ? "text-rose-500" : "hover:text-rose-500"
+              }`}
+            >
+              <Heart className={`w-4 h-4 ${hasLiked ? "fill-rose-500 text-rose-500" : ""}`} />
+              <span>{likeCount}</span>
+            </button>
+
+            {/* Comments Button */}
+            <button
+              onClick={() => setShowComments(!showComments)}
+              className={`flex items-center gap-1 sm:gap-1.5 font-medium transition-colors ${
+                showComments ? "text-primary-600" : "hover:text-primary-600"
+              }`}
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>{commentCount}</span>
+            </button>
+
+            {/* Repost Button */}
+            <button
+              type="button"
+              onClick={handleToggleRepost}
+              className={`flex items-center gap-1 sm:gap-1.5 font-medium transition-colors ${
+                hasReposted ? "text-emerald-500 font-bold" : "hover:text-emerald-500"
+              }`}
+              title={hasReposted ? "Undo Repost" : "Repost to your network"}
+            >
+              <Repeat2 className={`w-4 h-4 ${hasReposted ? "text-emerald-500" : ""}`} />
+              <span>{repostCount}</span>
+            </button>
+
+            {/* Save / Bookmark Button */}
+            <button
+              onClick={handleToggleSave}
+              className={`flex items-center gap-1 sm:gap-1.5 font-medium transition-colors ${
+                isSaved ? "text-amber-500" : "hover:text-amber-500"
+              }`}
+            >
+              <Bookmark className={`w-4 h-4 ${isSaved ? "fill-amber-500 text-amber-500" : ""}`} />
+              <span className="hidden sm:inline">{isSaved ? "Saved" : "Save"}</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Idea Launch / Active Button */}
+            {(post.postType === "idea" || post.ideaDetails) && (
+              post.convertedToProject ? (
+                <Link to={`/projects/${post.convertedToProject._id || post.convertedToProject}`}>
+                  <Button size="xs" variant="outline" className="text-[11px] gap-1 font-bold text-emerald-600 border-emerald-500/40 h-7 px-2 sm:px-2.5 rounded-lg">
+                    <Rocket className="w-3 h-3 text-emerald-500" />
+                    <span>Project Active</span>
+                  </Button>
+                </Link>
+              ) : isAuthor ? (
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="primary"
+                  onClick={() => {
+                    navigate('/projects/create', {
+                      state: {
+                        fromIdea: {
+                          postId: post._id,
+                          title: post.title || '',
+                          description: post.content || '',
+                          category: 'Web Development',
+                          skills: post.tags || [],
+                        },
+                      },
+                    });
+                  }}
+                  className="text-[11px] gap-1 font-bold bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-xs h-7 px-2.5 rounded-lg"
+                >
+                  <Rocket className="w-3 h-3" />
+                  <span>Launch<span className="hidden sm:inline"> as Project</span></span>
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="outline"
+                  onClick={() => setShowComments(true)}
+                  className="text-[11px] gap-1 font-semibold text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 h-7 px-2 sm:px-2.5 rounded-lg"
+                >
+                  <MessageSquare className="w-3 h-3 text-amber-500" />
+                  <span>Feedback</span>
+                </Button>
+              )
+            )}
+
+            <button
+              type="button"
+              onClick={handleShare}
+              className="flex items-center gap-1 hover:text-primary-600 transition-colors p-1"
+              title="Share post"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Share</span>
+            </button>
+          </div>
+        </div>
+      </div>{
     /* Expandable Threaded Comments */
   }{showComments && <CommentThread
     postId={post._id}
@@ -386,6 +630,8 @@ export const PostCard = ({
     title={post.title || post.content?.slice(0, 50)}
     description={post.content}
     type={post.postType === "idea" ? "idea" : "post"}
-  /></div>;
+  />
+    </div>
+  );
 };
 export default PostCard;

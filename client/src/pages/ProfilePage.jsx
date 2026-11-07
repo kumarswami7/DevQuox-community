@@ -684,6 +684,7 @@ export const ProfilePage = () => {
   const bannerSource =
     profile?.bannerImage &&
     typeof profile.bannerImage === "string" &&
+    profile.bannerImage !== "/banners/minimalist_desk.jpg" &&
     (profile.bannerImage.startsWith("/") ||
       profile.bannerImage.startsWith("http://") ||
       profile.bannerImage.startsWith("https://") ||
@@ -705,19 +706,19 @@ export const ProfilePage = () => {
       {/* 1. HERO HEADER CARD (LinkedIn-Inspired Professional Design)               */}
       {/* ========================================================================= */}
       <Card className="p-0 overflow-hidden relative border-slate-200 dark:border-slate-800 shadow-sm bg-white dark:bg-cardDark rounded-2xl">
-        {/* Banner (Cover Image) - Generous Height to Prevent Image Cropping */}
-        <div className="h-64 sm:h-72 md:h-80 lg:h-[340px] xl:h-[360px] w-full relative overflow-hidden bg-slate-100 dark:bg-slate-900 rounded-t-2xl">
+        {/* Banner (Cover Image) - Crisp Pro LinkedIn Aspect Ratio */}
+        <div className="h-52 sm:h-60 md:h-68 lg:h-72 w-full relative overflow-hidden bg-slate-900 rounded-t-2xl border-b border-slate-200/80 dark:border-slate-800">
           <img
             src={bannerSource}
             alt={profile.companyName || profileUser?.name || "Profile Cover Banner"}
-            className="w-full h-full object-cover object-[center_60%] select-none"
+            className="w-full h-full object-cover object-[center_35%] select-none"
             onError={(e) => {
               e.currentTarget.src = BANNER_PRESETS[0].imageUrl;
             }}
           />
 
-          {/* Subtle Top Gradient for Button Contrast */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-transparent to-transparent pointer-events-none" />
+          {/* Subtle Top & Bottom Gradient for Button Contrast & Clean Separation */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/30 pointer-events-none" />
 
           {/* Banner Edit Button (Inside banner, top-right) */}
           {isOwnProfile && (
@@ -737,9 +738,9 @@ export const ProfilePage = () => {
         {/* Profile Details Container */}
         <div className="px-6 sm:px-8 pb-6 pt-0 relative bg-white dark:bg-cardDark">
           {/* Top Row: Avatar overlapping banner (left) + Institutional Affiliations & Edit Button (right) */}
-          <div className="flex items-end justify-between -mt-16 sm:-mt-20 md:-mt-24 mb-3">
+          <div className="flex items-end justify-between -mt-16 sm:-mt-20 md:-mt-24 mb-2">
             {/* Circular Profile Avatar */}
-            <div className="relative shrink-0">
+            <div className="relative shrink-0 z-20">
               <div className="w-32 h-32 sm:w-40 sm:h-40 md:w-44 md:h-44 rounded-full border-4 sm:border-[5px] border-white dark:border-cardDark shadow-xl overflow-hidden bg-white dark:bg-slate-800 flex items-center justify-center">
                 {profile.avatar || profile.avatarUrl || profileUser?.avatar ? (
                   <img
@@ -757,7 +758,7 @@ export const ProfilePage = () => {
               {/* Upload / Camera Button on Avatar */}
               {isOwnProfile && (
                 <label
-                  className="absolute bottom-1.5 right-1.5 sm:bottom-2 sm:right-2 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 shadow-md hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center justify-center cursor-pointer border border-slate-200 dark:border-slate-700 z-10 hover:scale-105"
+                  className="absolute bottom-1.5 right-1.5 sm:bottom-2 sm:right-2 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 shadow-md hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center justify-center cursor-pointer border border-slate-200 dark:border-slate-700 z-30 hover:scale-105"
                   title="Update profile picture"
                   aria-label="Update profile picture"
                 >
@@ -778,7 +779,7 @@ export const ProfilePage = () => {
             </div>
 
             {/* Top-Right: Affiliations Stack & Edit Intro Button */}
-            <div className="flex items-center gap-3 pb-1">
+            <div className="flex items-center gap-3 pb-2 z-10">
               {/* Institutional Affiliations Stack (Current Company & University) */}
               <div className="hidden sm:flex items-center gap-2.5">
                 {currentCompany && (
@@ -1369,13 +1370,13 @@ export const ProfilePage = () => {
                           </p>
                           <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100 dark:border-slate-800">
                             <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                              {proj.budget ? `$${proj.budget.toLocaleString()}` : "Budget Negotiable"}
+                              {proj.category || (proj.projectType === "collaboration" ? "Community Project" : "Developer Squad")}
                             </span>
                             <Link
-                              to={`/projects/${proj._id || proj.id}`}
+                              to={isOwnProfile ? `/projects/${proj._id || proj.id}/workspace` : `/projects/${proj._id || proj.id}`}
                               className="text-xs text-primary-600 hover:underline font-bold flex items-center gap-1"
                             >
-                              <span>View & Apply</span>
+                              <span>{isOwnProfile ? "Workspace" : "View Details"}</span>
                               <ExternalLink className="w-3 h-3" />
                             </Link>
                           </div>

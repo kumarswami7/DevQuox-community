@@ -52,11 +52,17 @@ export const TechnologyIcon = ({
     setProviderIndex(0);
   }, [name]);
 
-  const candidates = [
-    meta.iconUrl,
-    meta.fallbackUrl,
-    meta.iconifyUrl,
-  ].filter(Boolean);
+  // Only attempt external image candidates if this is a canonical, verified skill
+  // or has an explicit verified custom URL (skip unverified simpleicons/iconify guesses to avoid 404 network errors)
+  const isAutoGuessedUrl = (url) =>
+    typeof url === 'string' &&
+    (url.includes('simpleicons.org') || url.includes('iconify.design')) &&
+    !meta.found;
+
+  const candidates = (meta.found
+    ? [meta.iconUrl, meta.fallbackUrl, meta.iconifyUrl]
+    : [meta.iconUrl, meta.fallbackUrl, meta.iconifyUrl].filter((url) => url && !isAutoGuessedUrl(url))
+  ).filter(Boolean);
 
   const currentSrc = candidates[providerIndex];
 

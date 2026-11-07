@@ -9,7 +9,7 @@ export const AuthLayout = () => {
   const isRegister = location.pathname.includes("/register");
 
   return (
-    <div className="h-screen max-h-screen w-full bg-[#FAFAFC] text-slate-900 flex flex-col justify-between overflow-hidden selection:bg-primary-500 selection:text-white">
+    <div className="min-h-screen w-full bg-[#FAFAFC] dark:bg-[#0c1319] text-slate-900 dark:text-slate-100 flex flex-col justify-between selection:bg-primary-500 selection:text-white relative">
       {/* Ambient Top Glow & Engineering Grid */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[350px] bg-[radial-gradient(ellipse_at_top,rgba(220,38,38,0.06),transparent_70%)] pointer-events-none" />
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000006_1px,transparent_1px),linear-gradient(to_bottom,#00000006_1px,transparent_1px)] bg-[size:3rem_3rem] [mask-image:radial-gradient(ellipse_80%_60%_at_50%_10%,#000_60%,transparent_100%)] pointer-events-none" />
@@ -57,8 +57,8 @@ export const AuthLayout = () => {
         </div>
       </header>
 
-      {/* Centered Main Stage (Zero Scroll Fit) */}
-      <main className="relative z-20 flex-1 flex items-center justify-center px-4 py-2 sm:py-4 overflow-y-auto lg:overflow-hidden">
+      {/* Centered Main Stage (Natural Smooth Scroll for Full Forms) */}
+      <main className="relative z-20 flex-1 flex items-center justify-center px-4 py-6 sm:py-10 w-full">
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
