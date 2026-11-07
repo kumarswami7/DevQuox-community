@@ -6,10 +6,15 @@ import { protect } from '../middleware/authMiddleware.js';
 
 export const uploadRouter = express.Router();
 
-// Setup Multer Storage inside uploads/ directory
-const uploadsDir = path.join(process.cwd(), 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+// Setup Multer Storage — use /tmp on serverless (Vercel), uploads/ locally
+const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+const uploadsDir = isServerless ? '/tmp/uploads' : path.join(process.cwd(), 'uploads');
+try {
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+} catch {
+  // Ignore — directory creation may fail in read-only environments
 }
 
 const storage = multer.diskStorage({
@@ -46,7 +51,10 @@ uploadRouter.post('/', protect, upload.single('file'), (req, res) => {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    const fileUrl = `http://localhost:5000/uploads/${req.file.filename}`;
+    const baseUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : `http://localhost:${process.env.PORT || 5000}`;
+    const fileUrl = `${baseUrl}/uploads/${req.file.filename}`;
     return res.status(200).json({
       message: 'File uploaded successfully!',
       url: fileUrl,
