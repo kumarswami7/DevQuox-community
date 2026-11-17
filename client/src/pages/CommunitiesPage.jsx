@@ -300,10 +300,8 @@ export const CommunitiesPage = () => {
 
       {/* ────────────────── FEED TAB CONTENT ────────────────── */}
       {activeTab === "feed" && (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
-          {/* Main Feed Column (3 cols) */}
-          <div className="lg:col-span-3 space-y-4">
-            {/* Search & Sort Toolbar */}
+        <div className="space-y-4">
+          {/* Search & Sort Toolbar */}
             <div className="bg-white dark:bg-cardDark p-3.5 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm">
               <form onSubmit={handleSearchSubmit} className="relative">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -397,29 +395,6 @@ export const CommunitiesPage = () => {
                   );
                 })}
               </div>
-
-              {/* Mobile-only Trending Tags row */}
-              {popularTags.length > 0 && (
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 pt-1 border-t border-slate-100 dark:border-slate-850 lg:hidden no-scrollbar">
-                  <Tag className="w-3.5 h-3.5 text-primary-600 shrink-0 mr-0.5" />
-                  {popularTags.slice(0, 8).map((t, idx) => {
-                    const tagName = t.name || t.tag || t._id;
-                    return (
-                      <button
-                        key={tagName || `mob-tag-${idx}`}
-                        onClick={() => setActiveTag(activeTag === tagName ? null : tagName)}
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-medium whitespace-nowrap transition-colors ${
-                          activeTag === tagName
-                            ? "bg-primary-600 text-white"
-                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
-                        }`}
-                      >
-                        <span>#{tagName}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
             </div>
 
             {/* Post Composer Modal / Inline */}
@@ -488,54 +463,6 @@ export const CommunitiesPage = () => {
                 )}
               </div>
             )}
-          </div>
-
-          {/* Right Sidebar: Popular Tags, Guidelines (hidden on mobile, tags shown in top bar) */}
-          <div className="hidden lg:block space-y-5">
-            {/* Popular Tags Box */}
-            <div className="bg-white dark:bg-cardDark p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200">
-                <Tag className="w-4 h-4 text-primary-600" />
-                <span>Trending Tags</span>
-              </div>
-              {popularTags.length === 0 ? (
-                <p className="text-xs text-slate-400">No tags active yet.</p>
-              ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {popularTags.map((t, idx) => {
-                    const tagName = t.name || t.tag || t._id;
-                    return (
-                      <button
-                        key={tagName || `tag-${idx}`}
-                        onClick={() => setActiveTag(activeTag === tagName ? null : tagName)}
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-                          activeTag === tagName
-                            ? "bg-primary-600 text-white"
-                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-                        }`}
-                      >
-                        <span>#{tagName}</span>
-                        <span className="text-[10px] opacity-70">({t.count})</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Community Guidelines Card */}
-            <div className="bg-gradient-to-br from-primary-500/10 via-primary-500/5 to-transparent p-4 rounded-2xl border border-primary-500/20 space-y-2">
-              <h4 className="text-xs font-bold text-primary-600 dark:text-primary-400 uppercase tracking-wider">
-                Devquox Community Code
-              </h4>
-              <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-1.5 list-disc list-inside">
-                <li>Be respectful, helpful, and kind.</li>
-                <li>Share authentic projects and code.</li>
-                <li>No spam, scamming, or aggressive self-promo.</li>
-                <li>Report violations to keep discussions safe.</li>
-              </ul>
-            </div>
-          </div>
         </div>
       )}
 

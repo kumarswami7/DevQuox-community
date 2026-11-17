@@ -119,11 +119,11 @@ export const TaskKanbanBoard = ({
               ) : (
                 colTasks.map((task) => {
                   const isCreator = String(task.creator?._id || task.creator) === String(currentUserId);
-                  const canManage = isElevated || isCreator;
+                  const canManage = isElevated;
                   const isAssigned = (task.assignees || []).some(
                     (a) => String(a._id || a) === String(currentUserId)
                   );
-                  const canChangeStatus = isElevated || isCreator || isAssigned;
+                  const canChangeStatus = isElevated || isAssigned || (!task.assignees?.length && isCreator);
                   const isOverdue =
                     task.dueDate &&
                     new Date() > new Date(task.dueDate) &&

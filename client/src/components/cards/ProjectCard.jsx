@@ -363,23 +363,22 @@ export const ProjectCard = ({ project, onProjectUpdated, onProjectDeleted }) => 
 
         <div className="space-y-3.5">
           {/* Header Row: Owner Avatar & Info, Status Pill, Bookmark, More Menu */}
-          <div className="flex items-start justify-between gap-2 sm:gap-3">
-            <div className="flex items-start gap-2.5 sm:gap-3 min-w-0 flex-1">
-              <Link to={ownerId ? `/profile/${ownerId}` : "#"} onClick={(e) => e.stopPropagation()} className="shrink-0 mt-0.5">
+          <div className="flex items-start justify-between gap-2.5 sm:gap-3">
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+              <Link to={ownerId ? `/profile/${ownerId}` : "#"} onClick={(e) => e.stopPropagation()} className="shrink-0">
                 <Avatar src={ownerAvatar} name={ownerName} size="md" />
               </Link>
               <div className="min-w-0 flex-1">
-                {/* Line 1: Owner Name */}
-                <Link
-                  to={ownerId ? `/profile/${ownerId}` : "#"}
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white hover:text-primary-500 transition-colors truncate block"
-                >
-                  {ownerName}
-                </Link>
+                {/* Line 1: Owner Name and Role Badge side-by-side */}
+                <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                  <Link
+                    to={ownerId ? `/profile/${ownerId}` : "#"}
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white hover:text-primary-500 transition-colors truncate"
+                  >
+                    {ownerName}
+                  </Link>
 
-                {/* Line 2: Creator Role Badge */}
-                <div className="flex items-center gap-1.5 mt-0.5">
                   {ownerRole === "client" ? (
                     <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold tracking-wide bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800 whitespace-nowrap">
                       <Briefcase className="w-2.5 h-2.5 shrink-0" />
@@ -396,36 +395,39 @@ export const ProjectCard = ({ project, onProjectUpdated, onProjectDeleted }) => 
                   ) : null}
                 </div>
 
-                {/* Line 3: Headline and Date */}
-                <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 min-w-0">
+                {/* Line 2: Date & Headline */}
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-0.5 min-w-0">
+                  <span className="font-medium shrink-0">{postedDate}</span>
                   {ownerHeadline && (
                     <>
-                      <span className="truncate max-w-[120px] sm:max-w-[200px]">{ownerHeadline}</span>
                       <span className="shrink-0">•</span>
+                      <span className="truncate max-w-[160px] text-slate-500 dark:text-slate-400">{ownerHeadline}</span>
                     </>
                   )}
-                  <span className="shrink-0 font-medium">{postedDate}</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-              {project.originIdeaPost && (
-                <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/60 dark:border-amber-800 whitespace-nowrap shrink-0" title="Project launched from a Community Idea & Pitch">
-                  <Lightbulb className="w-2.5 h-2.5 text-amber-500 shrink-0" />
-                  <span className="hidden sm:inline">Idea</span>
-                </span>
-              )}
+            {/* Right Side: Status Badge, Bookmark, 3-Dots Menu */}
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 pt-0.5">
               <span
                 className={`inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold whitespace-nowrap shrink-0 ${
                   isAppOpen
                     ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
                     : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
                 }`}
+                title={isAppOpen ? "Applications Open" : "Applications Closed"}
               >
                 <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isAppOpen ? "bg-emerald-500 animate-pulse" : "bg-rose-500"}`} />
-                <span>{isAppOpen ? "Applications Open" : "Applications Closed"}</span>
+                <span>{isAppOpen ? "Open" : "Closed"}</span>
               </span>
+
+              {project.originIdeaPost && (
+                <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/60 dark:border-amber-800 whitespace-nowrap shrink-0" title="Project launched from a Community Idea & Pitch">
+                  <Lightbulb className="w-2.5 h-2.5 text-amber-500 shrink-0" />
+                  <span className="hidden sm:inline">Idea</span>
+                </span>
+              )}
 
               <button
                 type="button"

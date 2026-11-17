@@ -68,11 +68,11 @@ export const TaskListView = ({
         <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
           {tasks.map((task) => {
             const isCreator = String(task.creator?._id || task.creator) === String(currentUserId);
-            const canManage = isElevated || isCreator;
+            const canManage = isElevated;
             const isAssigned = (task.assignees || []).some(
               (a) => String(a._id || a) === String(currentUserId)
             );
-            const canChangeStatus = isElevated || isCreator || isAssigned;
+            const canChangeStatus = isElevated || isAssigned || (!task.assignees?.length && isCreator);
             const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG.todo;
             const isOverdue =
               task.dueDate &&

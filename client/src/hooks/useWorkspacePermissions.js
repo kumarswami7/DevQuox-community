@@ -25,6 +25,7 @@ export const useWorkspacePermissions = (project, task = null, currentUser = null
         canEditProject: false,
         canManageTeam: false,
         canCreateMilestone: false,
+        canAssignTask: false,
         canEditTask: false,
         canDeleteTask: false,
         canChangeStatus: false,
@@ -52,12 +53,18 @@ export const useWorkspacePermissions = (project, task = null, currentUser = null
     const canEditProject = isOwner || isAdmin;
     const canManageTeam = isOwner || isAdmin;
     const canCreateMilestone = isElevated;
+    const canAssignTask = isElevated;
 
-    // Task capabilities
-    const canEditTask = Boolean(isElevated || isCreator);
-    const canDeleteTask = Boolean(isElevated || isCreator);
-    const canChangeStatus = Boolean(isElevated || isCreator || isAssignee);
-    const canApproveTask = Boolean(isElevated || isCreator);
+    // Task capabilities:
+    // Only assigned members (or elevated admin/owner) can change status.
+    // If unassigned, creator or admin can update status.
+    const canChangeStatus = Boolean(
+      isElevated || isAssignee || (!task?.assignees?.length && isCreator)
+    );
+    // Only elevated admin/owner can edit task details or delete
+    const canEditTask = Boolean(isElevated || (!task?.assignees?.length && isCreator));
+    const canDeleteTask = Boolean(isElevated);
+    const canApproveTask = Boolean(isElevated);
 
     return {
       isOwner,
@@ -70,6 +77,7 @@ export const useWorkspacePermissions = (project, task = null, currentUser = null
       canEditProject,
       canManageTeam,
       canCreateMilestone,
+      canAssignTask,
       canEditTask,
       canDeleteTask,
       canChangeStatus,

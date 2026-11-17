@@ -87,6 +87,8 @@ export const DeveloperCard = ({
   };
 
   const rawAvailability = developer.availability?.toLowerCase() || "available";
+  const isAvailable = rawAvailability === "available";
+  const isOpenOffers = rawAvailability === "open_to_offers";
   const availabilityLabel =
     rawAvailability === "open_to_offers"
       ? "Open to Offers"
@@ -112,26 +114,27 @@ export const DeveloperCard = ({
 
   return (
     <>
-      <Card className="glass-card hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between h-full group relative overflow-hidden border-slate-200/90 dark:border-slate-800/80 shadow-sm hover:shadow-md rounded-2xl">
+      <Card className="glass-card hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between h-full group relative overflow-hidden border border-slate-200/90 dark:border-slate-800/80 shadow-sm hover:shadow-lg rounded-2xl bg-white/90 dark:bg-cardDark/90">
         {/* Subtle accent corner glow */}
-        <div className="absolute top-0 right-0 w-28 h-28 bg-primary-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-primary-500/10 transition-colors" />
+        <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-primary-500/10 transition-colors" />
 
-        <div className="p-3.5 sm:p-4 space-y-2.5 sm:space-y-3">
-          {/* Top Row: Avatar, Identity, Rating, Bookmark Button */}
-          <div className="flex items-start justify-between gap-2 sm:gap-2.5">
-            <div className="flex items-start gap-2.5 sm:gap-3 min-w-0 flex-1">
+        <div className="p-3.5 sm:p-4 space-y-2.5 sm:space-y-3 flex-1 flex flex-col">
+          {/* Top Row: Avatar + Name & Headline + Status Dot & Bookmark */}
+          <div className="flex items-start justify-between gap-2.5">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
               <Avatar
                 src={developer.avatar || developer.avatarUrl}
                 name={developer.name}
-                size="md"
-                status={rawAvailability === "available" ? "online" : "idle"}
-                className="shrink-0 mt-0.5 aspect-square"
+                size="sm"
+                status={isAvailable ? "online" : "idle"}
+                className="shrink-0"
               />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <Link
                     to={`/profile/${devId}`}
                     className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white hover:text-primary-600 transition-colors truncate block"
+                    title={developer.name}
                   >
                     {developer.name}
                   </Link>
@@ -140,82 +143,99 @@ export const DeveloperCard = ({
                     title="Verified Developer Profile"
                   />
                 </div>
-
-                <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium line-clamp-1 mt-0.5">
+                <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate mt-0.5" title={headline}>
                   {headline}
                 </p>
-
-                <div className="flex items-center gap-1.5 mt-1 text-[11px] sm:text-xs text-amber-500 font-bold">
-                  <span className="flex items-center gap-1">
-                    <Star className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-amber-500" />
-                    <span>{ratingValue}</span>
-                  </span>
-                  <span className="text-[10px] sm:text-[11px] text-slate-400 font-normal">
-                    ({completedCount} built)
-                  </span>
-                </div>
+                {developer.location && (
+                  <div className="flex items-center gap-1 text-[10px] text-slate-400 mt-0.5">
+                    <MapPin className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                    <span className="truncate">{developer.location}</span>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Availability & Bookmark Action */}
-            <div className="flex flex-col items-end gap-1 shrink-0">
-              <div className="flex items-center gap-1">
-                {isAuthenticated && onToggleBookmark && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onToggleBookmark();
-                    }}
-                    className={`p-1 sm:p-1.5 rounded-lg transition-colors ${
-                      isBookmarked
-                        ? "bg-amber-500/10 text-amber-500 hover:bg-amber-500/20"
-                        : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-                    }`}
-                    title={isBookmarked ? "Saved in Bookmarks" : "Save Developer"}
-                  >
-                    <Bookmark
-                      className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${
-                        isBookmarked ? "fill-amber-500 text-amber-500" : ""
-                      }`}
-                    />
-                  </button>
-                )}
-                <Badge variant={availabilityVariant} className="text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 whitespace-nowrap">
-                  {availabilityLabel}
-                </Badge>
+            {/* Top Right: Green/Red/Amber Status Indicator Dot + Bookmark */}
+            <div className="flex items-center gap-1 shrink-0 pt-0.5">
+              {/* Clean Status Dot: Green (Available), Amber (Offers), Red (Unavailable) */}
+              <div
+                className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
+                  isAvailable
+                    ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500/30"
+                    : isOpenOffers
+                    ? "bg-amber-50 dark:bg-amber-950/40 border-amber-500/30"
+                    : "bg-rose-50 dark:bg-rose-950/40 border-rose-500/30"
+                }`}
+                title={`Status: ${availabilityLabel}`}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    isAvailable
+                      ? "bg-emerald-500 shadow-sm shadow-emerald-500/50 animate-pulse"
+                      : isOpenOffers
+                      ? "bg-amber-500"
+                      : "bg-rose-500"
+                  }`}
+                />
               </div>
 
-              {developer.experienceLevel && (
-                <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  {developer.experienceLevel}
-                </span>
+              {isAuthenticated && onToggleBookmark && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onToggleBookmark();
+                  }}
+                  className={`p-1 rounded-lg transition-colors ${
+                    isBookmarked
+                      ? "bg-amber-500/10 text-amber-500 hover:bg-amber-500/20"
+                      : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  }`}
+                  title={isBookmarked ? "Saved in Bookmarks" : "Save Developer"}
+                >
+                  <Bookmark
+                    className={`w-3.5 h-3.5 ${
+                      isBookmarked ? "fill-amber-500 text-amber-500" : ""
+                    }`}
+                  />
+                </button>
               )}
             </div>
           </div>
 
-          {/* Location & Meta info */}
-          {developer.location && (
-            <div className="flex items-center gap-1 text-[11px] text-slate-400">
-              <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-              <span className="truncate">{developer.location}</span>
+          {/* Badges Bar: Rating, Experience Level */}
+          <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-[10px] sm:text-[11px] font-bold whitespace-nowrap">
+              <Star className="w-3 h-3 fill-amber-500 text-amber-500 shrink-0" />
+              <span>{ratingValue}</span>
+              <span className="text-[9px] sm:text-[10px] font-normal text-slate-400 dark:text-slate-500">
+                ({completedCount} built)
+              </span>
             </div>
-          )}
 
-          {/* Bio / Summary */}
-          {bio && (
-            <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
+            {developer.experienceLevel && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[9px] font-extrabold uppercase tracking-wider whitespace-nowrap">
+                {developer.experienceLevel}
+              </span>
+            )}
+          </div>
+
+          {/* Bio / Summary with adjusted compact text size */}
+          {bio ? (
+            <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed flex-1 min-h-[2rem]">
               {bio}
             </p>
+          ) : (
+            <div className="flex-1 min-h-[2rem]" />
           )}
 
-          {/* Skill Chips */}
-          <div className="flex flex-wrap gap-1 sm:gap-1.5 pt-0.5">
+          {/* Skill Chips with compact text size */}
+          <div className="flex flex-wrap gap-1 pt-0.5">
             {skills.slice(0, 5).map((skill) => (
               <span
                 key={skill}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-primary-500/10 text-primary-700 dark:text-primary-300 border border-primary-500/20 whitespace-nowrap"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700/80 hover:border-primary-500/40 transition-colors whitespace-nowrap"
               >
                 <TechnologyIcon name={skill} size="xs" />
                 <span>{skill}</span>
@@ -229,10 +249,10 @@ export const DeveloperCard = ({
           </div>
         </div>
 
-        {/* Action Buttons Footer */}
-        <div className="p-2.5 sm:p-3 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/20 flex items-center justify-between gap-2">
+        {/* Action Buttons Footer with compact height */}
+        <div className="p-2.5 sm:p-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/30 flex items-center justify-between gap-2">
           <Link to={`/profile/${devId}`} className="flex-1">
-            <Button size="sm" variant="outline" className="w-full text-xs font-semibold h-8 sm:h-9 rounded-xl">
+            <Button size="sm" variant="outline" className="w-full text-xs font-bold h-8 sm:h-8.5 rounded-xl hover:bg-white dark:hover:bg-slate-800 transition-colors">
               View Profile
             </Button>
           </Link>
@@ -241,7 +261,7 @@ export const DeveloperCard = ({
             size="sm"
             variant="primary"
             onClick={() => setIsInviteOpen(true)}
-            className="gap-1.5 flex-1 shadow-sm text-xs font-semibold h-8 sm:h-9 rounded-xl"
+            className="gap-1.5 flex-1 shadow-sm text-xs font-bold h-8 sm:h-8.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white"
           >
             <MessageSquare className="w-3.5 h-3.5" />
             <span>{isClient ? "Hire / Invite" : "Message"}</span>

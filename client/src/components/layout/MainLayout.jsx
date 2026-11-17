@@ -16,6 +16,10 @@ export const MainLayout = () => {
   }
 
   const isMessages = location.pathname.startsWith('/messages');
+  const isProjectsFeed = location.pathname === '/projects' || location.pathname === '/projects/';
+  const isDevelopers = location.pathname.startsWith('/developers') || location.pathname.startsWith('/saved-developers');
+  const isBookmarks = location.pathname.startsWith('/bookmarks') || location.pathname.startsWith('/saved-projects');
+  const isFullWidthPage = isProjectsFeed || isDevelopers || isBookmarks;
 
   return (
     <div className={`bg-white mesh-gradient flex flex-col relative ${isMessages ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
@@ -24,6 +28,8 @@ export const MainLayout = () => {
         className={`flex-1 w-full md:pl-64 ${
           isMessages
             ? 'xl:pr-0 h-[calc(100vh-4rem)] mt-16 overflow-hidden flex flex-col'
+            : isFullWidthPage
+            ? 'pt-16 xl:pr-0 min-h-[calc(100vh-4rem)]'
             : 'pt-16 xl:pr-80 min-h-[calc(100vh-4rem)]'
         }`}
       >
@@ -38,7 +44,7 @@ export const MainLayout = () => {
         >
           <Outlet />
         </main>
-        {!isMessages && <RightSidebar />}
+        {!isMessages && !isFullWidthPage && <RightSidebar />}
       </div>
       {!isMessages && <BottomNav />}
     </div>

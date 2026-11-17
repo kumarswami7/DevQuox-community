@@ -463,8 +463,8 @@ export const ProjectsFeedPage = () => {
           </Card>
         </aside>
 
-        {/* ── CENTER FEED (Col 6 on lg, Col 9 on 2xl) ────────────────────── */}
-        <main className="col-span-12 lg:col-span-6 2xl:col-span-9 space-y-4">
+        {/* ── CENTER FEED (Col 6 on desktop) ─────────────────────────────── */}
+        <main className="col-span-12 lg:col-span-6 space-y-4">
           {/* Feed Tabs Bar: For You, Following, Latest, Trending */}
           <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-white/80 dark:bg-cardDark/80 border border-slate-200/90 dark:border-slate-800/80 shadow-sm overflow-x-auto scrollbar-none no-scrollbar">
             {FEED_TABS.map((tab) => {
@@ -756,8 +756,8 @@ export const ProjectsFeedPage = () => {
           )}
         </main>
 
-        {/* ── RIGHT SIDEBAR (Col 3 on lg, hidden on mobile & 2xl to avoid duplicate with global RightSidebar) ── */}
-        <aside className="hidden lg:block lg:col-span-3 2xl:hidden space-y-4">
+        {/* ── RIGHT COLUMN (Col 3 on desktop) ────────────────────────────── */}
+        <aside className="hidden lg:block lg:col-span-3 space-y-4">
           {/* Real Platform Statistics */}
           <Card className="glass-card p-4 border-slate-200/90 dark:border-slate-800/80 space-y-3">
             <div className="flex items-center gap-2">

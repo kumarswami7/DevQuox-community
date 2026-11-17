@@ -232,6 +232,31 @@ export const createProjectTaskHandler = async (req, res, next) => {
       targetAssignees = [assignee];
     }
 
+    // Check role: Only Project Owner or Admin can assign tasks to other team members
+    const { isOwner, role } = await getProjectUserRole(project._id, req.user._id);
+    const isOwnerOrAdmin =
+      Boolean(req.isWorkspaceOwner) ||
+      Boolean(isOwner) ||
+      role === 'owner' ||
+      role === 'manager' ||
+      req.workspaceMembership?.role === 'owner' ||
+      req.workspaceMembership?.role === 'manager' ||
+      String(project.owner?._id || project.owner) === String(req.user._id || req.user.id) ||
+      req.user.role === 'admin';
+
+    if (targetAssignees.length > 0 && !isOwnerOrAdmin) {
+      const otherAssignees = targetAssignees.filter(
+        (id) => String(id._id || id) !== String(req.user._id || req.user.id)
+      );
+      if (otherAssignees.length > 0) {
+        return res.status(403).json({
+          success: false,
+          code: 'PERMISSION_DENIED',
+          message: 'Only the project owner or admin can assign tasks to other team members.',
+        });
+      }
+    }
+
     // Validate that all assignees are active project members
     if (targetAssignees.length > 0) {
       const validation = await validateProjectAssignees(project._id, targetAssignees);
@@ -416,10 +441,16 @@ export const updateTaskHandler = async (req, res, next) => {
       });
     }
 
-    const isCreator = String(task.creator) === String(req.user._id);
-    const isAssignee = Array.isArray(task.assignees) && task.assignees.some((a) => String(a._id || a) === String(req.user._id));
+    const isOwnerOrAdmin =
+      Boolean(isOwner) ||
+      role === 'owner' ||
+      role === 'manager' ||
+      String(project?.owner?._id || project?.owner) === String(req.user._id || req.user.id) ||
+      req.user.role === 'admin';
+    const isCreator = String(task.creator?._id || task.creator) === String(req.user._id || req.user.id);
+    const isAssignee = Array.isArray(task.assignees) && task.assignees.some((a) => String(a._id || a) === String(req.user._id || req.user.id));
     const isManager = role === 'manager';
-    const isElevated = isOwner || isManager || isCreator || req.user.role === 'admin';
+    const isElevated = isOwnerOrAdmin || isCreator;
 
     // Allowlist filtering
     const updates = {};
@@ -429,8 +460,17 @@ export const updateTaskHandler = async (req, res, next) => {
       }
     }
 
-    // Permission check: only elevated users (owner, manager, creator) or assignees can touch the task
-    if (!isElevated && !isAssignee) {
+    // Permission check:
+    // If task has assignees, only the assigned team member or elevated admin/owner can touch it
+    if (task.assignees?.length > 0 && !isAssignee && !isElevated) {
+      return res.status(403).json({
+        success: false,
+        code: 'PERMISSION_DENIED',
+        message: 'Permission denied. Only the assigned team member or project admin/owner can update this task.',
+      });
+    }
+
+    if (!isElevated && !isAssignee && !isCreator) {
       return res.status(403).json({
         success: false,
         code: 'PERMISSION_DENIED',
@@ -438,24 +478,25 @@ export const updateTaskHandler = async (req, res, next) => {
       });
     }
 
-    // Assignees who are not creator/owner can only update status
+    // Assignees who are not owner/manager can only update status
     if (!isElevated && isAssignee) {
       const nonStatusUpdates = Object.keys(updates).filter((k) => k !== 'status');
       if (nonStatusUpdates.length > 0) {
         return res.status(403).json({
           success: false,
           code: 'PERMISSION_DENIED',
-          message: 'Assignees can only update task status. Only the task creator or project owner can edit task details.',
+          message: 'Assignees can only update task status. Only the project owner or admin can edit task details.',
         });
       }
     }
 
-    // If assignees or milestone are being updated, require elevated privileges
+    // If assignees or milestone are being updated, require elevated privileges (Owner or Admin)
     if (updates.assignees !== undefined || updates.assignee !== undefined) {
       if (!isElevated) {
         return res.status(403).json({
           success: false,
-          message: 'Only the project owner, manager, or task creator can reassign tasks',
+          code: 'PERMISSION_DENIED',
+          message: 'Only the project owner or admin can assign or reassign tasks',
         });
       }
 
@@ -679,17 +720,24 @@ taskRouter.patch('/:id/status', protect, async (req, res, next) => {
       });
     }
 
-    const isCreator = String(task.creator) === String(req.user._id);
-    const isAssignee = Array.isArray(task.assignees) && task.assignees.some((a) => String(a._id || a) === String(req.user._id));
+    const isOwnerOrAdmin =
+      Boolean(isOwner) ||
+      role === 'owner' ||
+      role === 'manager' ||
+      String(project?.owner?._id || project?.owner) === String(req.user._id || req.user.id) ||
+      req.user.role === 'admin';
+    const isCreator = String(task.creator?._id || task.creator) === String(req.user._id || req.user.id);
+    const isAssignee = Array.isArray(task.assignees) && task.assignees.some((a) => String(a._id || a) === String(req.user._id || req.user.id));
     const isManager = role === 'manager';
-    const isElevated = isOwner || isManager || isCreator || req.user.role === 'admin';
-    const canChangeStatus = isElevated || isAssignee;
+    const isElevated = isOwnerOrAdmin;
+    // If the task has assignees, only the assigned team member or admin/owner can change status
+    const canChangeStatus = isElevated || isAssignee || (!task.assignees?.length && isCreator);
 
     if (!canChangeStatus) {
       return res.status(403).json({
         success: false,
         code: 'PERMISSION_DENIED',
-        message: 'Permission denied. Only the task creator, assigned team member, or project owner can change this task status.',
+        message: 'Permission denied. Only the assigned team member or project admin/owner can change this task status.',
       });
     }
 
@@ -834,7 +882,7 @@ taskRouter.delete('/:id', protect, async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Task not found' });
     }
 
-    const { isMember, role, isOwner } = await getProjectUserRole(task.project, req.user._id);
+    const { isMember, role, isOwner, project } = await getProjectUserRole(task.project, req.user._id);
     if (!isMember && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
@@ -842,21 +890,16 @@ taskRouter.delete('/:id', protect, async (req, res, next) => {
       });
     }
 
-    const isCreator = String(task.creator) === String(req.user._id);
-    const isAssignee = Array.isArray(task.assignees) && task.assignees.some((a) => String(a._id || a) === String(req.user._id));
-    const isManager = role === 'manager';
-    const isElevated = isOwner || isManager || isCreator || req.user.role === 'admin';
-    const canChangeStatus = isElevated || isAssignee;
+    const isOwnerOrAdmin =
+      Boolean(isOwner) ||
+      role === 'owner' ||
+      role === 'manager' ||
+      String(project?.owner?._id || project?.owner) === String(req.user._id || req.user.id) ||
+      req.user.role === 'admin';
+    const isCreator = String(task.creator?._id || task.creator) === String(req.user._id || req.user.id);
+    const isElevated = isOwnerOrAdmin;
 
-    if (!canChangeStatus) {
-      return res.status(403).json({
-        success: false,
-        code: 'PERMISSION_DENIED',
-        message: 'Permission denied. Only the task creator, assigned team member, or project owner can change this task status.',
-      });
-    }
-
-    if (!isElevated) {
+    if (!isElevated && !isCreator) {
       return res.status(403).json({
         success: false,
         message: 'Only the project owner, manager, or task creator can delete tasks',

@@ -969,8 +969,13 @@ export const ProjectWorkspacePage = () => {
             setSelectedTaskForDetail(task);
             setShowDetailModal(true);
           }}
+          onStatusChange={handleTaskStatusChange}
+          onMilestoneStatusChange={handleMilestoneStatusChange}
+          onEditMilestone={handleOpenEditMilestone}
           canCreateTask={isElevated || permissions.isMember}
           canCreateMilestone={permissions.canCreateMilestone}
+          isElevated={isElevated}
+          currentUserId={currentUser?._id}
         />
       )}
 
@@ -1363,6 +1368,8 @@ export const ProjectWorkspacePage = () => {
         members={team}
         milestones={milestones}
         isProcessing={isProcessing}
+        isElevated={isElevated}
+        currentUserId={currentUser?._id}
       />
 
       {/* ========================================================== */}

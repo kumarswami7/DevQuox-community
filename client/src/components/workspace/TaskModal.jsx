@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Avatar } from '../ui/Avatar';
-import { X, Calendar, Clock, Layers, Users, AlertCircle, Check } from 'lucide-react';
+import { X, Calendar, Clock, Layers, Users, AlertCircle, Check, Lock } from 'lucide-react';
 
 export const TaskModal = ({
   isOpen,
@@ -12,6 +12,8 @@ export const TaskModal = ({
   members = [],
   milestones = [],
   isProcessing = false,
+  isElevated = false,
+  currentUserId = null,
 }) => {
   const isEditing = Boolean(task && task._id);
 
@@ -276,49 +278,80 @@ export const TaskModal = ({
 
           {/* Assignees Selector */}
           <div className="space-y-1.5">
-            <label className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-              <Users className="w-3.5 h-3.5 text-primary-500" /> Assign To Active Team Members
-            </label>
-            <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-900/30 max-h-36 overflow-y-auto space-y-1.5">
-              {members.length === 0 ? (
-                <p className="text-slate-400 italic">No active team members available</p>
-              ) : (
-                members.map((member) => {
-                  const u = member.user || member;
-                  const isChecked = formData.assignees.includes(u._id);
-
-                  return (
-                    <label
-                      key={u._id}
-                      onClick={() => toggleAssignee(u._id)}
-                      className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
-                        isChecked
-                          ? 'bg-primary-50/80 dark:bg-primary-950/40 border border-primary-200 dark:border-primary-800'
-                          : 'hover:bg-white dark:hover:bg-slate-800 border border-transparent'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Avatar src={u.avatar || u.avatarUrl} name={u.name || 'User'} size="xs" />
-                        <div>
-                          <p className="font-bold text-slate-900 dark:text-white leading-none">{u.name}</p>
-                          <span className="text-[10px] text-slate-400">@{u.username}</span>
-                        </div>
-                      </div>
-
-                      <div
-                        className={`w-4 h-4 rounded flex items-center justify-center border transition-colors ${
-                          isChecked
-                            ? 'bg-primary-600 border-primary-600 text-white'
-                            : 'border-slate-300 dark:border-slate-600'
-                        }`}
-                      >
-                        {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
-                      </div>
-                    </label>
-                  );
-                })
+            <div className="flex items-center justify-between">
+              <label className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                <Users className="w-3.5 h-3.5 text-primary-500" /> Assign To Active Team Members
+              </label>
+              {!isElevated && (
+                <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-md flex items-center gap-1 border border-amber-200 dark:border-amber-800/60">
+                  <Lock className="w-2.5 h-2.5" /> Project Admin Only
+                </span>
               )}
             </div>
+
+            {!isElevated ? (
+              <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-900/30 text-xs text-slate-500 space-y-2">
+                <p>Only the Project Admin / Owner can assign or reassign tasks to team members.</p>
+                {formData.assignees.length > 0 ? (
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <span className="font-bold text-slate-700 dark:text-slate-300 text-xs">Current Assignees:</span>
+                    {formData.assignees.map((aId) => {
+                      const m = members.find((mem) => String(mem.user?._id || mem.user?.id || mem._id) === String(aId));
+                      const u = m?.user || m;
+                      return (
+                        <span key={aId} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-semibold text-xs shadow-xs">
+                          <Avatar src={u?.avatar || u?.avatarUrl} name={u?.name || 'User'} size="xs" />
+                          <span>{u?.name || 'Member'}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-slate-400 italic">This task is currently unassigned. Admin will assign it to a team member.</p>
+                )}
+              </div>
+            ) : (
+              <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-900/30 max-h-36 overflow-y-auto space-y-1.5">
+                {members.length === 0 ? (
+                  <p className="text-slate-400 italic">No active team members available</p>
+                ) : (
+                  members.map((member) => {
+                    const u = member.user || member;
+                    const isChecked = formData.assignees.includes(u._id);
+
+                    return (
+                      <label
+                        key={u._id}
+                        onClick={() => toggleAssignee(u._id)}
+                        className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
+                          isChecked
+                            ? 'bg-primary-50/80 dark:bg-primary-950/40 border border-primary-200 dark:border-primary-800'
+                            : 'hover:bg-white dark:hover:bg-slate-800 border border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Avatar src={u.avatar || u.avatarUrl} name={u.name || 'User'} size="xs" />
+                          <div>
+                            <p className="font-bold text-slate-900 dark:text-white leading-none">{u.name}</p>
+                            <span className="text-[10px] text-slate-400">@{u.username}</span>
+                          </div>
+                        </div>
+
+                        <div
+                          className={`w-4 h-4 rounded flex items-center justify-center border transition-colors ${
+                            isChecked
+                              ? 'bg-primary-600 border-primary-600 text-white'
+                              : 'border-slate-300 dark:border-slate-600'
+                          }`}
+                        >
+                          {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                        </div>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+            )}
           </div>
 
           {/* Start Date & Due Date */}

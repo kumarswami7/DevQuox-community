@@ -1,5 +1,6 @@
 import { Project } from '../models/Project.js';
 import { ProjectMember } from '../models/ProjectMember.js';
+import { Application } from '../models/Application.js';
 
 /**
  * Standard API error format constants
@@ -35,6 +36,22 @@ export const getProjectUserRole = async (projectId, userId) => {
 
   if (membership) {
     return { isMember: true, role: membership.role, isOwner: false, project };
+  }
+
+  // Also check embedded project.members array
+  const memberInArray = project.members?.find((m) => String(m.user?._id || m.user || m) === uId);
+  if (memberInArray) {
+    return { isMember: true, role: memberInArray.role || 'contributor', isOwner: false, project };
+  }
+
+  // Also check if user has an accepted application
+  const acceptedApp = await Application.findOne({
+    project: project._id,
+    applicant: uId,
+    status: 'accepted',
+  });
+  if (acceptedApp) {
+    return { isMember: true, role: 'contributor', isOwner: false, project };
   }
 
   return { isMember: false, role: null, isOwner: false, project };
@@ -100,36 +117,60 @@ export const canCreateMilestone = (role, isOwner, user) => {
 
 /**
  * Helper: Check if user can edit task content (title, description, tags, effort)
- * Project Owner, Manager, or Task Creator
+ * ONLY Project Owner, Manager, or Admin.
+ * (Unassigned task creator can edit if unassigned).
  */
 export const canEditTask = (task, user, { isOwner, role }) => {
   if (!task || !user) return false;
-  if (user.role === 'admin') return true;
-  if (isOwner || role === 'manager') return true;
-  return isTaskCreator(task, user._id || user.id);
+  if (user.role === 'admin' || isOwner || role === 'manager') return true;
+  // If task is unassigned, creator may edit details
+  const uid = user._id || user.id;
+  if ((!task.assignees || task.assignees.length === 0) && isTaskCreator(task, uid)) {
+    return true;
+  }
+  return false;
 };
 
 /**
  * Helper: Check if user can delete task
- * ONLY Project Owner, Manager, or Task Creator
+ * ONLY Project Owner, Manager, or Admin
  */
 export const canDeleteTask = (task, user, { isOwner, role }) => {
   if (!task || !user) return false;
-  if (user.role === 'admin') return true;
-  if (isOwner || role === 'manager') return true;
-  return isTaskCreator(task, user._id || user.id);
+  if (user.role === 'admin' || isOwner || role === 'manager') return true;
+  const uid = user._id || user.id;
+  if ((!task.assignees || task.assignees.length === 0) && isTaskCreator(task, uid)) {
+    return true;
+  }
+  return false;
 };
 
 /**
  * Helper: Check if user can change task status
- * Project Owner, Manager, Task Creator, OR Assigned Member
+ * - Assigned member can ONLY update their own assigned task
+ * - Project Owner, Manager, or Admin can update any task
+ * - If unassigned, creator can update
  */
 export const canChangeTaskStatus = (task, user, { isOwner, role }) => {
   if (!task || !user) return false;
-  if (user.role === 'admin') return true;
-  if (isOwner || role === 'manager') return true;
+  if (user.role === 'admin' || isOwner || role === 'manager') return true;
   const uid = user._id || user.id;
-  return isTaskCreator(task, uid) || isTaskAssignee(task, uid);
+  // Assigned team member can update their own task
+  if (isTaskAssignee(task, uid)) return true;
+  // Unassigned tasks can be updated by creator
+  if ((!task.assignees || task.assignees.length === 0) && isTaskCreator(task, uid)) {
+    return true;
+  }
+  return false;
+};
+
+/**
+ * Helper: Check if user can assign tasks to members
+ * ONLY Project Owner, Manager, or Admin
+ */
+export const canAssignTask = (user, { isOwner, role }) => {
+  if (!user) return false;
+  return user.role === 'admin' || isOwner || role === 'manager';
 };
 
 /**
@@ -170,9 +211,25 @@ export const validateProjectAssignees = async (projectId, assigneeIds = []) => {
       status: 'active',
     });
 
-    if (!member) {
-      invalidIds.push(strId);
+    if (member) {
+      continue;
     }
+
+    const memberInArray = project.members?.some((m) => String(m.user?._id || m.user || m) === strId);
+    if (memberInArray) {
+      continue;
+    }
+
+    const acceptedApp = await Application.findOne({
+      project: projectId,
+      applicant: strId,
+      status: 'accepted',
+    });
+    if (acceptedApp) {
+      continue;
+    }
+
+    invalidIds.push(strId);
   }
 
   return {

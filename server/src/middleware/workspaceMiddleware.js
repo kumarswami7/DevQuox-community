@@ -1,5 +1,6 @@
 import { Project } from '../models/Project.js';
 import { ProjectMember } from '../models/ProjectMember.js';
+import { Application } from '../models/Application.js';
 
 /**
  * Reusable middleware to verify that an authenticated user has active workspace access to a project.
@@ -20,61 +21,110 @@ export const requireWorkspaceMember = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Project not found' });
     }
 
-    const isOwner = String(project.owner) === String(req.user._id);
+    const userId = String(req.user._id || req.user.id);
+    const ownerId = String(project.owner?._id || project.owner);
+    const isOwner = ownerId === userId;
     const isAdmin = req.user.role === 'admin';
 
-    if (isOwner || isAdmin) {
+    // Check project.members array
+    const memberInArray = project.members?.find(
+      (m) => String(m.user?._id || m.user || m) === userId
+    );
+
+    if (isOwner || isAdmin || memberInArray) {
       req.project = project;
       req.workspaceMembership = {
-        role: 'owner',
+        role: isOwner ? 'owner' : (memberInArray?.role || 'contributor'),
         status: 'active',
-        joinedAt: project.createdAt,
+        joinedAt: memberInArray?.joinedAt || project.createdAt,
       };
-      req.isWorkspaceOwner = true;
+      req.isWorkspaceOwner = isOwner || isAdmin;
       return next();
     }
 
     // Look for active membership in ProjectMember collection
     const membership = await ProjectMember.findOne({
-      project: project._id,
-      user: req.user._id,
+      $or: [
+        { project: project._id, user: req.user._id || req.user.id },
+        { projectId: project._id, userId: req.user._id || req.user.id },
+      ],
       status: 'active',
     });
 
-    if (!membership) {
-      // Check if user was removed or left
-      const inactive = await ProjectMember.findOne({
-        project: project._id,
-        user: req.user._id,
-      });
+    if (membership) {
+      req.project = project;
+      req.workspaceMembership = membership;
+      req.isWorkspaceOwner = membership.role === 'owner';
+      return next();
+    }
 
-      if (inactive?.status === 'removed') {
-        return res.status(403).json({
-          success: false,
-          code: 'MEMBERSHIP_REMOVED',
-          message: 'Your access to this project workspace has been revoked by the owner',
-        });
-      }
+    // Check if user has an accepted application on this project
+    const acceptedApp = await Application.findOne({
+      project: project._id,
+      applicant: req.user._id || req.user.id,
+      status: 'accepted',
+    });
 
-      if (inactive?.status === 'left') {
-        return res.status(403).json({
-          success: false,
-          code: 'MEMBERSHIP_LEFT',
-          message: 'You previously departed from this project workspace',
-        });
-      }
+    if (acceptedApp) {
+      // Auto-heal ProjectMember record if missing
+      await ProjectMember.findOneAndUpdate(
+        {
+          $or: [
+            { project: project._id, user: req.user._id || req.user.id },
+            { projectId: project._id, userId: req.user._id || req.user.id },
+          ],
+        },
+        {
+          project: project._id,
+          projectId: project._id,
+          user: req.user._id || req.user.id,
+          userId: req.user._id || req.user.id,
+          role: 'member',
+          status: 'active',
+          joinedAt: acceptedApp.updatedAt || new Date(),
+        },
+        { upsert: true, new: true }
+      ).catch(() => {});
 
+      req.project = project;
+      req.workspaceMembership = {
+        role: 'member',
+        status: 'active',
+        joinedAt: acceptedApp.updatedAt || new Date(),
+      };
+      req.isWorkspaceOwner = false;
+      return next();
+    }
+
+    // Check if user was removed or left
+    const inactive = await ProjectMember.findOne({
+      $or: [
+        { project: project._id, user: req.user._id || req.user.id },
+        { projectId: project._id, userId: req.user._id || req.user.id },
+      ],
+    });
+
+    if (inactive?.status === 'removed') {
       return res.status(403).json({
         success: false,
-        code: 'ACCESS_DENIED',
-        message: 'You do not have active workspace access to this project',
+        code: 'MEMBERSHIP_REMOVED',
+        message: 'Your access to this project workspace has been revoked by the owner',
       });
     }
 
-    req.project = project;
-    req.workspaceMembership = membership;
-    req.isWorkspaceOwner = membership.role === 'owner';
-    return next();
+    if (inactive?.status === 'left') {
+      return res.status(403).json({
+        success: false,
+        code: 'MEMBERSHIP_LEFT',
+        message: 'You previously departed from this project workspace',
+      });
+    }
+
+    return res.status(403).json({
+      success: false,
+      code: 'ACCESS_DENIED',
+      message: 'You do not have active workspace access to this project',
+    });
   } catch (err) {
     next(err);
   }
@@ -84,7 +134,8 @@ export const requireWorkspaceMember = async (req, res, next) => {
  * Reusable middleware ensuring the caller has project ownership permissions.
  */
 export const requireWorkspaceOwner = (req, res, next) => {
-  if (req.isWorkspaceOwner || String(req.project?.owner) === String(req.user?._id) || req.user?.role === 'admin') {
+  const isOwner = String(req.project?.owner?._id || req.project?.owner) === String(req.user?._id || req.user?.id);
+  if (req.isWorkspaceOwner || isOwner || req.user?.role === 'admin') {
     return next();
   }
   return res.status(403).json({

@@ -53,8 +53,8 @@ export const TaskDetailModal = ({
   const isAssigned = (task.assignees || []).some(
     (a) => String(a._id || a) === String(currentUserId)
   );
-  const canManage = isElevated || isCreator;
-  const canChangeStatus = isElevated || isCreator || isAssigned;
+  const canManage = isElevated;
+  const canChangeStatus = isElevated || isAssigned || (!task.assignees?.length && isCreator);
   const statusInfo = STATUS_MAP[task.status] || STATUS_MAP.todo;
   const isOverdue =
     task.dueDate &&
@@ -259,9 +259,15 @@ export const TaskDetailModal = ({
 
           {!canChangeStatus ? (
             <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex items-center gap-2.5 text-xs text-slate-600 dark:text-slate-400">
-              <Lock className="w-4 h-4 text-slate-400 shrink-0" />
+              <Lock className="w-4 h-4 text-amber-500 shrink-0" />
               <span>
-                Task workflow is protected. Only the creator (<strong>{task.creator?.name || 'author'}</strong>), assigned team members, or the project owner can update its status.
+                Task workflow is protected. Only the assigned team member (
+                <strong>
+                  {task.assignees?.length
+                    ? task.assignees.map((a) => a.name || a.username || 'member').join(', ')
+                    : 'assigned member'}
+                </strong>
+                ) or the project admin can update its status.
               </span>
             </div>
           ) : (
